@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>智能客服Agent</title>
+        <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    </head>
+<body>
+    <header>
+        <div class="container header-content">
+            <h1>智能客服Agent</h1>
+            <nav>
+                <ul>
+                    <li><a href="#">首页</a></li>
+                    <li><a href="#">功能</a></li>
+                    <li><a href="#">关于</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+    <div class="container">
+        <main>
+            <div class="chat-section">
+                <div class="chat-container">
+                    <div class="chat-messages" id="chat-messages">
+                    <div class="message bot-message">
+                        <div class="message-content">您好！我是智能客服助手，有什么可以帮助您的吗？</div>
+                    </div>
+                </div>
+                    <div class="chat-input">
+                        <input type="text" id="message-input" placeholder="请输入您的问题..." autocomplete="off">
+                        <button id="send-button">发送</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+        let threadId = "default";
+        
+        // 页面加载时添加时间戳
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatMessages = document.getElementById('chat-messages');
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            timeDiv.textContent = `今天 ${getCurrentTime()}`;
+            chatMessages.insertBefore(timeDiv, chatMessages.firstChild);
+        });
+
+        function sendMessageStream() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (message) {
+                addMessage('user', message);
+                input.value = '';
+                
+                const loadingId = addLoadingMessage();
+                
+                fetch('/chat/stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message, thread_id: threadId })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    
+                    removeLoadingMessage(loadingId);
+                    
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message bot-message';
+                    
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'message-content';
+                    
+                    messageDiv.appendChild(contentDiv);
+                    
+                    const chatMessages = document.getElementById('chat-messages');
+                    chatMessages.appendChild(messageDiv);
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                    
+                    const reader = response.body.getReader();
+                    let fullContent = '';
+                    let buffer = '';
+                    let lastUpdateTime = 0;
+                    const updateInterval = 100; // 每100毫秒更新一次UI
+                    
+                    function read() {
+                        reader.read().then(({ done, value }) => {
+                            if (done) {
+                                // 处理剩余的缓冲内容
+                                if (buffer) {
+                                    processBuffer(buffer);
+                                }
+                                return;
+                            }
+                            
+                            const chunk = new TextDecoder().decode(value);
+                            buffer += chunk;
+                            
+                            // 定期更新UI
+                            const now = Date.now();
+                            if (now - lastUpdateTime > updateInterval) {
+                                processBuffer(buffer);
+                                buffer = '';
+                                lastUpdateTime = now;
+                            }
+                            
+                            read();
+                        }).catch(error => {
+                            console.error('Error reading stream:', error);
+                            contentDiv.textContent = '抱歉，流式传输失败，请稍后再试。';
+                        });
+                    }
+                    
+                    function processBuffer(data) {
+                        // 分割并处理SSE格式的数据
+                        const lines = data.split('\n');
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const content = line.substring(6).trim();
+                                if (content && content !== '[DONE]') {
+                                    fullContent += content;
+                                }
+                            }
+                        }
+                        if (fullContent) {
+                            contentDiv.innerHTML = marked.parse(fullContent);
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        }
+                    }
+                    
+                    read();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    removeLoadingMessage(loadingId);
+                    addMessage('bot', '抱歉，系统暂时无法响应，请稍后再试。');
+                });
+            }
+        }
+
+        function addMessage(type, content) {
+            const chatMessages = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = content;
+            
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+            
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return messageDiv;
+        }
+
+        function addLoadingMessage() {
+            const chatMessages = document.getElementById('chat-messages');
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message bot-message';
+            loadingDiv.id = 'loading-message';
+            
+            const loadingContent = document.createElement('div');
+            loadingContent.className = 'message-content';
+            
+            const loadingSpinner = document.createElement('div');
+            loadingSpinner.className = 'loading';
+            loadingSpinner.innerHTML = `
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+            `;
+            
+            const loadingText = document.createElement('span');
+            loadingText.textContent = ' 正在思考...';
+            
+            loadingContent.appendChild(loadingSpinner);
+            loadingContent.appendChild(loadingText);
+            loadingDiv.appendChild(loadingContent);
+            
+            chatMessages.appendChild(loadingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return 'loading-message';
+        }
+
+        function removeLoadingMessage(id) {
+            const loadingDiv = document.getElementById(id);
+            if (loadingDiv) {
+                loadingDiv.remove();
+            }
+        }
+
+        function getCurrentTime() {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
+
+        document.getElementById('send-button').addEventListener('click', sendMessageStream);
+        document.getElementById('message-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessageStream();
+            }
+        });
+    </script>
+</body>
+</html>

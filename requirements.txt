@@ -1,0 +1,15 @@
+langchain
+langchain_openai
+langgraph
+pymilvus
+fastapi
+uvicorn
+python-dotenv
+requests
+langsmith
+langchain_elasticsearch
+elasticsearch
+langchain_milvus
+langchain_community
+langchain_text_splitters
+dashscope

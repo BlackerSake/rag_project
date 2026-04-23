@@ -1,0 +1,55 @@
+# 二级分类意图树
+intents:
+  # 售后服务
+  A1:
+    name: "退货/退款"
+    description: "包含7天无理由、质量问题、错发漏发等所有退款请求"
+    intent_id: "A1"
+  
+  A2:
+    name: "换货/维修"
+    description: "包含换尺码、寄回维修、网点查询"
+    intent_id: "A2"
+  
+  A3:
+    name: "物流状态"
+    description: "包含查快递、改地址、催发货、退款状态"
+    intent_id: "A3"
+  
+  # 产品与咨询
+  B1:
+    name: "规格参数"
+    description: "包含尺寸重量、材质说明、兼容性"
+    intent_id: "B1"
+  
+  B2:
+    name: "价格活动"
+    description: "包含优惠券使用、保价政策、活动时间"
+    intent_id: "B2"
+  
+  B3:
+    name: "使用教程"
+    description: "包含安装步骤、故障排除、APP绑定"
+    intent_id: "B3"
+  
+  # 账户与安全
+  C1:
+    name: "登录注册"
+    description: "包含注销账号、修改密码、绑定手机"
+    intent_id: "C1"
+  
+  C2:
+    name: "会员权益"
+    description: "包含积分查询、等级提升、权益领取"
+    intent_id: "C2"
+  
+  # 通用/闲聊
+  D1:
+    name: "寒暄"
+    description: "包含你好、你是谁、谢谢"
+    intent_id: "D1"
+  
+  D2:
+    name: "人工介入"
+    description: "包含投诉、转人工、电话联系"
+    intent_id: "D2"

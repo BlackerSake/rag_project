@@ -1,0 +1,22 @@
+# 敏感配置
+.env
+
+# Python 编译缓存
+__pycache__/
+*.pyc
+
+# Docker 数据卷（数据库/搜索引擎/对象存储的持久化数据）
+volumes/
+milvus_data/
+
+# 日志文件
+logs/
+*.log
+search_evaluation.log
+
+# VSCode 配置（如果不需要团队共享）
+.vscode/
+
+# Milvus 本地数据
+rdb_data/
+rdb_data_meta_kv/
