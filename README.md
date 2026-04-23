@@ -1,4 +1,4 @@
-# 智能客服Agent
+# 智能客服Agent(其实是rag)
 
 基于LangGraph、DeepSeek、LangChain、Milvus和FastAPI的智能客服系统。
 
