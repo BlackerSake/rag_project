@@ -41,7 +41,18 @@ deepseek_base_url="https://api.deepseek.com"
 
 ### 启动Milvus服务
 
-确保Milvus服务正在运行：
+确保Milvus服务正在运行：启动+检查 +停止,删除
+```bash
+docker compose up -d
+```
+
+```bash
+docker compose ps
+```
+
+```bash
+docker compose down
+```
 
 ### 热启动
 

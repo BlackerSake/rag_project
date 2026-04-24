@@ -2,6 +2,7 @@ langchain
 langchain_openai
 langgraph
 pymilvus
+pymysql
 fastapi
 uvicorn
 python-dotenv

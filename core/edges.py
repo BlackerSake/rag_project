@@ -8,6 +8,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.logging_config import get_logger
 
 # 获取日志记录器
+from dotenv import load_dotenv
+from pathlib import Path
+env_path = Path(__file__).parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 logger = get_logger(__name__)
 
 async def decide_next_node(state: State) -> str:

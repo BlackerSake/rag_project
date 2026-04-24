@@ -13,12 +13,14 @@ from pymilvus import connections, utility
 
 # 添加根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from pathlib import Path
 
 # 加载环境变量
-load_dotenv('.env')
+env_path = Path(__file__).parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
-dashscope_api_key = os.getenv("dashscope_api_key")
-dashscope_model_id = os.getenv("dashscope_model_id")
+dashscope_api_key = os.getenv("DASHSCOPE_API_KEY")
+dashscope_model_id = os.getenv("DASHSCOPE_MODEL_ID")
 
 class IntentManager:
     def __init__(self, yaml_path="config/intents.yaml", collection_name="intent_index"):
@@ -34,7 +36,10 @@ class IntentManager:
         self.intent_tree = {}
         self.intent_map = {}
         self.last_modified = 0
-        self.embeddings = DashScopeEmbeddings(model=dashscope_model_id)
+        self.embeddings = DashScopeEmbeddings(
+            model=dashscope_model_id,
+            dashscope_api_key=dashscope_api_key
+        )
         self.vector_store = None
         self._initialized = False
         

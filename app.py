@@ -1,16 +1,12 @@
+import os
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
-import uvicorn
-from state_machine import run_chat
-from utils.logging_config import get_logger
 
-# 获取日志记录器
-logger = get_logger(__name__)
-
+# 先初始化 FastAPI
 app = FastAPI(
     title="智能客服Agent API",
     description="基于LangGraph和DeepSeek的智能客服系统",
@@ -30,11 +26,28 @@ class ChatResponse(BaseModel):
     topic: str
     thread_id: str
 
-# 根路径
-templates = Jinja2Templates(directory="templates")
+# 初始化模板
+templates_dir = os.path.join(os.path.dirname(__file__), "templates")
+templates = Jinja2Templates(directory=templates_dir)
+
+# 然后导入其他模块
+import uvicorn
+from utils.logging_config import get_logger
+from state_machine import run_chat
+
+# 获取日志记录器
+logger = get_logger(__name__)
+
+print(f"Templates directory: {templates_dir}")
+print(f"Templates directory exists: {os.path.exists(templates_dir)}")
+
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    # 直接读取并返回模板文件内容
+    template_path = os.path.join(templates_dir, "index.html")
+    with open(template_path, "r", encoding="utf-8") as f:
+        template_content = f.read()
+    return HTMLResponse(content=template_content)
 
 # 聊天接口
 @app.post("/chat", response_model=ChatResponse)

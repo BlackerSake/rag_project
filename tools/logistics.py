@@ -14,9 +14,9 @@ class LogisticsTool(BaseTool):
     
     def __init__(self):
         """初始化物流工具"""
-        self.api_key = os.getenv('agent_tool_api')
+        self.api_key = os.getenv('AGENT_TOOL_API_KEY')
         if not self.api_key:
-            raise ValueError("agent_tool_api not found in environment variables")
+            raise ValueError("AGENT_TOOL_API_KEY not found in environment variables")
         self.api_url = "https://uapis.cn/api/v1/misc/tracking/query"
     
     def execute(self, **kwargs) -> Dict[str, Any]:
