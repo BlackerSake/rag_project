@@ -8,20 +8,23 @@ from dotenv import load_dotenv
 
 # 加载环境变量
 load_dotenv('.env')
+MILVUS_CHECK_ALIAS = "milvus_field_checker"
 
 class MilvusFieldChecker:
     def __init__(self):
         """初始化Milvus字段检查器"""
         self.collection_name = "customer_service"
-        self.milvus_uri = os.getenv("MILVUS_URI", "tcp://localhost:19530")
+        self.milvus_uri = os.getenv("MILVUS_URI", "http://localhost:19530")
+        if self.milvus_uri.startswith("tcp://"):
+            self.milvus_uri = f"http://{self.milvus_uri[len('tcp://'):]}"
         self.connect()
     
     def connect(self):
         """连接到Milvus"""
         try:
-            if not connections.has_connection("default"):
+            if not connections.has_connection(MILVUS_CHECK_ALIAS):
                 print(f"正在连接到Milvus: {self.milvus_uri}")
-                connections.connect("default", uri=self.milvus_uri)
+                connections.connect(MILVUS_CHECK_ALIAS, uri=self.milvus_uri)
                 print("Milvus连接成功")
             else:
                 print("Milvus已有连接，无需重复连接")
@@ -30,7 +33,7 @@ class MilvusFieldChecker:
     
     def check_collection(self):
         """检查集合是否存在"""
-        if utility.has_collection(self.collection_name):
+        if utility.has_collection(self.collection_name, using=MILVUS_CHECK_ALIAS):
             print(f"集合 {self.collection_name} 存在")
             return True
         else:
@@ -43,7 +46,7 @@ class MilvusFieldChecker:
             return
         
         try:
-            collection = Collection(self.collection_name)
+            collection = Collection(self.collection_name, using=MILVUS_CHECK_ALIAS)
             schema = collection.schema
             print("\n集合字段:")
             for field in schema.fields:
@@ -58,7 +61,7 @@ class MilvusFieldChecker:
             return
         
         try:
-            collection = Collection(self.collection_name)
+            collection = Collection(self.collection_name, using=MILVUS_CHECK_ALIAS)
             collection.load()
             
             # 查询前几条数据
@@ -82,10 +85,10 @@ class MilvusFieldChecker:
     
     def drop_collection(self):
         """删除集合（谨慎使用）"""
-        if utility.has_collection(self.collection_name):
+        if utility.has_collection(self.collection_name, using=MILVUS_CHECK_ALIAS):
             confirm = input(f"确定要删除集合 {self.collection_name} 吗？(y/n): ")
             if confirm.lower() == 'y':
-                utility.drop_collection(self.collection_name)
+                utility.drop_collection(self.collection_name, using=MILVUS_CHECK_ALIAS)
                 print(f"集合 {self.collection_name} 已删除")
             else:
                 print("取消删除操作")

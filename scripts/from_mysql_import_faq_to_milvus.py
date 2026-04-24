@@ -1,6 +1,6 @@
 import sys
 import os
-from venv import logger
+import logging
 # 将当前项目的根目录加入搜索路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -16,6 +16,7 @@ from data.knowledge_base import KnowledgeBase
 """
 # 加载环境变量
 load_dotenv('.env')
+logger = logging.getLogger(__name__)
 
 class MySQLFAQImporter:
     def __init__(self, mysql_config, batch_size=100):
@@ -61,7 +62,8 @@ class MySQLFAQImporter:
                 logger.info(f"从{self.mysql_config['database']}数据库发现 {total} 条FAQ记录")
                 
                 # 分批读取数据
-                total_imported = 0
+                total_es_imported = 0
+                total_milvus_imported = 0
                 total_batches = (total + self.batch_size - 1) // self.batch_size
                 
                 with tqdm(total=total_batches, desc="导入FAQ批次", unit="批") as pbar:
@@ -102,6 +104,7 @@ class MySQLFAQImporter:
                                     page_content=content,
                                     metadata=metadata
                                 )
+                                doc.metadata["doc_id"] = self.knowledge_base._generate_doc_id(doc)
                                 documents.append(doc)
                             except Exception as e:
                                 print(f"处理FAQ记录失败 (ID: {record.get('id', 'unknown')}): {str(e)}")
@@ -112,48 +115,44 @@ class MySQLFAQImporter:
                             self.knowledge_base.ensure_connected()
                             # 批量添加到知识库
                             try:
+                                es_success = False
+                                milvus_success = False
+
                                 # 先尝试添加到Elasticsearch（如果可用）
                                 if self.knowledge_base.elasticsearch_store:
                                     try:
                                         self.knowledge_base.elasticsearch_store.add_documents(documents)
                                         print(f"成功添加 {len(documents)} 条文档到Elasticsearch")
-                                        total_imported += len(documents)
+                                        es_success = True
+                                        total_es_imported += len(documents)
                                     except Exception as e_es:
                                         print(f"添加到Elasticsearch失败: {str(e_es)}")
                                 
                                 # 再尝试添加到Milvus（如果可用）
                                 if self.knowledge_base.vector_store:
                                     try:
-                                        # 尝试使用add_faq方法
-                                        faq_items = {}
-                                        for doc in documents:
-                                            content = doc.page_content
-                                            if "问题: " in content and "答案: " in content:
-                                                question = content.split("问题: ")[1].split("\n答案: ")[0]
-                                                answer = content.split("答案: ")[1]
-                                                faq_items[question] = answer
-                                        
-                                        if faq_items:
-                                            added_count = self.knowledge_base.add_faq(faq_items)
-                                            print(f"成功添加 {added_count} 条FAQ到Milvus")
+                                        self.knowledge_base.vector_store.add_documents(documents)
+                                        print(f"成功添加 {len(documents)} 条FAQ到Milvus")
+                                        milvus_success = True
+                                        total_milvus_imported += len(documents)
                                     except Exception as e_milvus:
                                         print(f"添加到Milvus失败: {str(e_milvus)}")
-                                        # 如果add_faq失败，尝试直接添加
-                                        try:
-                                            self.knowledge_base.vector_store.add_documents(documents)
-                                            print(f"成功添加 {len(documents)} 条文档到Milvus")
-                                        except Exception as e_direct:
-                                            print(f"直接添加到Milvus失败: {str(e_direct)}")
                                 else:
                                     print("Milvus未连接，跳过Milvus添加")
                             except Exception as e:
                                 print(f"添加文档失败: {str(e)}")
                         
                         pbar.update(1)
-                        pbar.set_postfix({"已导入": total_imported})
+                        pbar.set_postfix({
+                            "Milvus": total_milvus_imported,
+                            "ES": total_es_imported
+                        })
                 
-                print(f"导入完成，共成功导入 {total_imported} 条FAQ")
-                return total_imported
+                print(
+                    f"导入完成，Milvus成功导入 {total_milvus_imported} 条FAQ，"
+                    f"Elasticsearch成功导入 {total_es_imported} 条FAQ"
+                )
+                return total_milvus_imported
                 
         except Exception as e:
             print(f"导入过程中出现错误: {str(e)}")

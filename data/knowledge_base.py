@@ -1,4 +1,3 @@
-
 from langchain_milvus import Milvus
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_community.document_loaders import TextLoader
@@ -19,8 +18,9 @@ from cachetools import TTLCache
 
 # 尝试导入pymilvus
 try:
-    from pymilvus import connections, utility
+    from pymilvus import Collection, connections, utility
 except ImportError:
+    Collection = None
     connections = None
     utility = None
 # 配置日志
@@ -39,6 +39,8 @@ load_dotenv(dotenv_path=env_path)
 langchain_smith_api_key = os.getenv("LANGCHAIN_SMITH_API_KEY")
 dashscope_api_key = os.getenv("DASHSCOPE_API_KEY")
 dashscope_model_id = os.getenv("DASHSCOPE_MODEL_ID")
+MILVUS_COLLECTION_NAME = "customer_service"
+MILVUS_ORM_ALIAS = "customer_service_kb"
 
 class KnowledgeBase:
     def __init__(self):
@@ -60,6 +62,61 @@ class KnowledgeBase:
         
         self._rerank_enabled = os.getenv("RERANK_ENABLED", "false").lower() == "true"
         self._rerank_top_k = int(os.getenv("RERANK_TOP_K", "6"))
+
+    def _get_milvus_connection_args(self):
+        raw_uri = os.getenv("MILVUS_URI", "http://localhost:19530")
+        milvus_uri = raw_uri.strip()
+
+        # langchain_milvus 当前底层使用 MilvusClient，要求 HTTP/HTTPS URI。
+        if milvus_uri.startswith("tcp://"):
+            milvus_uri = f"http://{milvus_uri[len('tcp://'):]}"
+
+        return {"uri": milvus_uri}
+
+    def _ensure_milvus_orm_connection(self, connection_args):
+        if connections is None:
+            return None
+
+        try:
+            if not connections.has_connection(MILVUS_ORM_ALIAS):
+                connections.connect(alias=MILVUS_ORM_ALIAS, **connection_args)
+                logger.info(
+                    "已建立Milvus ORM连接: %s -> %s",
+                    MILVUS_ORM_ALIAS,
+                    connection_args["uri"]
+                )
+            return MILVUS_ORM_ALIAS
+        except Exception as e:
+            logger.warning(f"建立Milvus ORM连接失败，将继续使用MilvusClient: {str(e)}")
+            return None
+
+    def _refresh_vector_store_schema_cache(self, alias=None):
+        if (
+            self.vector_store is None
+            or Collection is None
+            or utility is None
+        ):
+            return
+
+        active_alias = alias or getattr(self.vector_store, "alias", None)
+        if not active_alias:
+            return
+
+        try:
+            self.vector_store.alias = active_alias
+            self.vector_store.fields = []
+            self.vector_store.col = None
+
+            if utility.has_collection(MILVUS_COLLECTION_NAME, using=active_alias):
+                collection = Collection(MILVUS_COLLECTION_NAME, using=active_alias)
+                self.vector_store.col = collection
+                self.vector_store.fields = [field.name for field in collection.schema.fields]
+                logger.info(
+                    "已刷新Milvus字段缓存: %s",
+                    ", ".join(self.vector_store.fields)
+                )
+        except Exception as e:
+            logger.warning(f"刷新Milvus字段缓存失败: {str(e)}")
     
     def _rerank_with_dashscope(self, query: str, candidates: list, top_k: int) -> list:
         if not self._rerank_enabled or not candidates:
@@ -114,34 +171,27 @@ class KnowledgeBase:
         if self.vector_store is None or self.elasticsearch_store is None:
             with self._init_lock:
                 if self.vector_store is None:
-                    # ============连接Milvus如果未连接则连接=====================
-                    try:
-                        if not connections.has_connection("default"):
-                            logger.info("未连接Milvus，尝试连接...")
-                            connections.connect("default", uri=os.getenv("MILVUS_URI", "tcp://localhost:19530"))
-                            logger.info("成功连接到Milvus")
-                        else:
-                            logger.info("pymilvus 已连接,无需重复连接")
-                    except Exception as e:
-                        logger.error(f"建立 pymilvus 连接失败: {str(e)}")
-                        return None
-                    # ============连接Milvus向量数据库=====================
+                    connection_args = self._get_milvus_connection_args()
+                    milvus_alias = self._ensure_milvus_orm_connection(connection_args)
                     max_attempts = 2
                     for attempt in range(max_attempts):
                         try:
-                            print(f"尝试连接Milvus (尝试 {attempt + 1}/{max_attempts})...")
+                            logger.info(
+                                "尝试连接Milvus向量数据库 (尝试 %s/%s): %s",
+                                attempt + 1,
+                                max_attempts,
+                                connection_args["uri"]
+                            )
                             self.vector_store = Milvus(
                                 embedding_function=self.embeddings,
                                 collection_name="customer_service",
-                                connection_args={
-                                    "uri": os.getenv("MILVUS_URI", "tcp://localhost:19530"),
-                                    "alias": "default"
-                                },
+                                connection_args=connection_args,
                                 index_params={
                                     "metric_type": "COSINE"
                                 },
                                 auto_id=True
                             )
+                            self._refresh_vector_store_schema_cache(alias=milvus_alias)
                             logger.info("成功连接到Milvus向量数据库")
                             break
                         except Exception as e:
@@ -269,6 +319,45 @@ class KnowledgeBase:
     def _get_cache_key(self, query: str, k: int, filter_expr) -> str:
         key_data = {"query": query, "k": k, "filter_expr": filter_expr}
         return hash(json.dumps(key_data, sort_keys=True))
+
+    def _milvus_client_search(self, query: str, k: int, filter_expr=None):
+        if not self.vector_store:
+            return []
+
+        search_params = self.vector_store.search_params
+        if isinstance(search_params, list):
+            search_params = search_params[0] if search_params else None
+
+        embedding = self.embeddings.embed_query(query)
+        raw_results = self.vector_store.client.search(
+            collection_name=self.vector_store.collection_name,
+            data=[embedding],
+            anns_field=self.vector_store._vector_field,
+            search_params=search_params,
+            limit=k,
+            filter=filter_expr or "",
+            output_fields=["*"],
+            timeout=self.vector_store.timeout
+        )
+
+        parsed_results = []
+        text_field = getattr(self.vector_store, "_text_field", "text")
+        vector_field = getattr(self.vector_store, "_vector_field", "vector")
+        primary_field = getattr(self.vector_store, "_primary_field", "pk")
+
+        for result in raw_results[0]:
+            entity = result.get("entity", {})
+            page_content = entity.get(text_field, "")
+            metadata = {
+                key: value
+                for key, value in entity.items()
+                if key not in {text_field, vector_field, primary_field}
+            }
+            parsed_results.append(
+                (Document(page_content=page_content, metadata=metadata), result.get("distance", 0.0))
+            )
+
+        return parsed_results
     
     def _vector_search(self, query: str, k: int, filter_expr=None):
         vector_results = []
@@ -276,10 +365,7 @@ class KnowledgeBase:
         try:
             if self.vector_store:
                 start = time.time()
-                vector_search_kwargs = {"k": k}
-                if filter_expr:
-                    vector_search_kwargs["expr"] = filter_expr
-                vector_results = self.vector_store.similarity_search_with_score(query, **vector_search_kwargs)
+                vector_results = self._milvus_client_search(query, k, filter_expr)
                 vector_time = time.time() - start
                 logger.info(f"向量检索成功，返回 {len(vector_results)} 条结果")
             else:
@@ -308,7 +394,7 @@ class KnowledgeBase:
         all_docs = []
         try:
             if self.vector_store:
-                all_docs = self.vector_store.similarity_search(query, k=100)
+                all_docs = [doc for doc, _score in self._milvus_client_search(query, 100)]
             if not all_docs and self.elasticsearch_store:
                 all_docs = self.elasticsearch_store.similarity_search(query, k=100)
         except Exception as e:

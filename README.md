@@ -32,7 +32,7 @@ dashscope_api_key="your-dashscope-api-key"
 dashscope_model_id="text-embedding-v2"
 
 # 服务配置
-MILVUS_URI="tcp://localhost:19530"
+MILVUS_URI="http://localhost:19530"
 ES_URL="http://localhost:9200"
 
 # 应用配置

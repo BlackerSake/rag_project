@@ -9,7 +9,7 @@ from langchain_milvus import Milvus
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_core.documents import Document
 from dotenv import load_dotenv
-from pymilvus import connections, utility
+from pymilvus import Collection, connections, utility
 
 # 添加根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,6 +21,7 @@ load_dotenv(dotenv_path=env_path)
 
 dashscope_api_key = os.getenv("DASHSCOPE_API_KEY")
 dashscope_model_id = os.getenv("DASHSCOPE_MODEL_ID")
+INTENT_MILVUS_ALIAS = "intent_manager_kb"
 
 class IntentManager:
     def __init__(self, yaml_path="config/intents.yaml", collection_name="intent_index"):
@@ -42,6 +43,71 @@ class IntentManager:
         )
         self.vector_store = None
         self._initialized = False
+
+    def _get_milvus_connection_args(self):
+        raw_uri = os.getenv("MILVUS_URI", "http://localhost:19530")
+        milvus_uri = raw_uri.strip()
+
+        if milvus_uri.startswith("tcp://"):
+            milvus_uri = f"http://{milvus_uri[len('tcp://'):]}"
+
+        return {"uri": milvus_uri}
+
+    def _ensure_milvus_orm_connection(self, connection_args):
+        try:
+            if not connections.has_connection(INTENT_MILVUS_ALIAS):
+                connections.connect(alias=INTENT_MILVUS_ALIAS, **connection_args)
+                print(f"Milvus ORM连接已建立: {INTENT_MILVUS_ALIAS} -> {connection_args['uri']}")
+            return INTENT_MILVUS_ALIAS
+        except Exception as e:
+            print(f"建立Milvus ORM连接失败，将继续使用MilvusClient: {str(e)}")
+            return None
+
+    def _refresh_vector_store_schema_cache(self, alias=None):
+        if self.vector_store is None:
+            return
+
+        active_alias = alias or getattr(self.vector_store, "alias", None)
+        if not active_alias:
+            return
+
+        try:
+            self.vector_store.alias = active_alias
+            self.vector_store.fields = []
+            self.vector_store.col = None
+
+            if utility.has_collection(self.collection_name, using=active_alias):
+                collection = Collection(self.collection_name, using=active_alias)
+                self.vector_store.col = collection
+                self.vector_store.fields = [field.name for field in collection.schema.fields]
+                print(f"已刷新意图Milvus字段缓存: {', '.join(self.vector_store.fields)}")
+        except Exception as e:
+            print(f"刷新意图Milvus字段缓存失败: {str(e)}")
+
+    def _client_search_intents(self, query, k=3):
+        if not self.vector_store:
+            return []
+
+        search_params = self.vector_store.search_params
+        if isinstance(search_params, list):
+            search_params = search_params[0] if search_params else None
+
+        embedding = self.embeddings.embed_query(query)
+        raw_results = self.vector_store.client.search(
+            collection_name=self.collection_name,
+            data=[embedding],
+            anns_field=self.vector_store._vector_field,
+            search_params=search_params,
+            limit=k,
+            output_fields=["*"],
+            timeout=self.vector_store.timeout
+        )
+
+        parsed_results = []
+        for result in raw_results[0]:
+            parsed_results.append((result.get("entity", {}), result.get("distance", 0.0)))
+
+        return parsed_results
         
     async def initialize(self):
         """异步初始化"""
@@ -68,18 +134,8 @@ class IntentManager:
     async def _init_milvus_async(self):
         """异步初始化Milvus向量存储"""
         try:
-            # 测试Milvus连接
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    connections.connect("default", uri="tcp://localhost:19530")
-                    print(f"Milvus连接成功 (尝试 {attempt + 1})")
-                    break
-                except Exception as e:
-                    print(f"Milvus连接尝试 {attempt + 1} 失败: {str(e)}")
-                    if attempt == max_retries - 1:
-                        raise
-                    await asyncio.sleep(2)
+            connection_args = self._get_milvus_connection_args()
+            milvus_alias = self._ensure_milvus_orm_connection(connection_args)
             
             # 创建向量存储
             loop = asyncio.get_event_loop()
@@ -88,15 +144,15 @@ class IntentManager:
                 lambda: Milvus(
                     embedding_function=self.embeddings,
                     collection_name=self.collection_name,
-                    connection_args={
-                        "uri": "tcp://localhost:19530"
-                    },
+                    connection_args=connection_args,
                     index_params={
                         "metric_type": "COSINE"
                     },
-                    auto_id=True
+                    auto_id=True,
+                    drop_old=True
                 )
             )
+            self._refresh_vector_store_schema_cache(alias=milvus_alias)
             print("Milvus向量存储初始化成功")
             
         except Exception as e:
@@ -165,8 +221,8 @@ class IntentManager:
                 # 检查并删除现有集合
                 def drop_collection():
                     try:
-                        if utility.has_collection(self.collection_name):
-                            utility.drop_collection(self.collection_name)
+                        if utility.has_collection(self.collection_name, using=INTENT_MILVUS_ALIAS):
+                            utility.drop_collection(self.collection_name, using=INTENT_MILVUS_ALIAS)
                             print(f"已删除现有集合: {self.collection_name}")
                     except Exception as e:
                         print(f"删除集合时出错: {str(e)}")
@@ -175,6 +231,7 @@ class IntentManager:
                 
                 # 添加新文档
                 await loop.run_in_executor(None, self.vector_store.add_documents, documents)
+                self._refresh_vector_store_schema_cache(alias=INTENT_MILVUS_ALIAS)
                 print(f"成功生成并存储 {len(documents)} 个意图向量")
                 
         except Exception as e:
@@ -220,7 +277,7 @@ class IntentManager:
             loop = asyncio.get_event_loop()
             results = await loop.run_in_executor(
                 None,
-                self.vector_store.similarity_search_with_score,
+                self._client_search_intents,
                 query,
                 k
             )
@@ -228,7 +285,7 @@ class IntentManager:
             if results:
                 # 获取匹配度最高的结果
                 best_result = max(results, key=lambda x: x[1])
-                intent_id = best_result[0].metadata.get('intent_id')
+                intent_id = best_result[0].get('intent_id')
                 score = best_result[1]
                 
                 print(f"匹配意图: {intent_id} (相似度: {score:.4f})")
