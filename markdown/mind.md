@@ -107,12 +107,6 @@ LLM 接收原始问题，输出一个 JSON 列表。
 2. 分别进行向量检索和BM25检索
 3. 结果合并,RRF算法打分
 
-### Minds 12/4
-#### MCP
-1. 可以把tool直接封装成一个mcp,然后在mcp中调用tool (要知道写的流程)
-2. 增加一个读写文件的tool
-3. 使用市场mcp,要会用
-
 ### Minds 22/4
 1. 将这个客服设置为对话系统，主攻rag方向。（主要是不好设置tool）
 2. 后续需要大量的检测系统
@@ -121,7 +115,8 @@ LLM 接收原始问题，输出一个 JSON 列表。
 1. 然后在写一个负责写代码的agent，主攻tool方向
 2. tool分类：read_file,write_file,ls_dir,python_repl(在沙箱运行),pip_install等等
 
-
+### Minds 24/4
+1. rag的检测系统:
 
 
 

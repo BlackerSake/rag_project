@@ -73,6 +73,21 @@ services:
     networks:
       - milvus-network
 
+  mysql:
+    image: mysql:8.0
+    container_name: customer_service_agent_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: 133466
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: always
+
 networks:
   milvus-network:
     driver: bridge
+volumes:
+  mysql_data:
+
+

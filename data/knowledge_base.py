@@ -13,11 +13,16 @@ import time
 import json
 import logging
 from datetime import datetime
-import asyncio
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from cachetools import TTLCache
 
+# 尝试导入pymilvus
+try:
+    from pymilvus import connections, utility
+except ImportError:
+    connections = None
+    utility = None
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
@@ -103,54 +108,50 @@ class KnowledgeBase:
         content_hash = hash(doc.page_content + json.dumps(doc.metadata, sort_keys=True))
         return f"{uuid.uuid4().hex[:8]}_{content_hash}"
     
-    async def connect(self):
-        """异步连接到Milvus向量数据库和Elasticsearch"""
-        if self.vector_store is None:
-            # 初始化Milvus向量存储
-            self.vector_store = Milvus(
-                embedding_function=self.embeddings,
-                collection_name="customer_service",
-                connection_args={
-                    "uri": "tcp://localhost:19530"
-                },
-                index_params={
-                    "metric_type": "COSINE"
-                },
-                auto_id=True
-            )
-            print("成功连接到Milvus向量数据库")
-        
-        if self.elasticsearch_store is None:
-            # 初始化Elasticsearch存储
-            self.elasticsearch_store = ElasticsearchStore(
-                es_url="http://localhost:9200",
-                index_name="customer_service",
-                embedding=self.embeddings
-            )
-            print("成功连接到Elasticsearch")
-        
-        return self.vector_store
+    # 移除重复的connect函数，统一使用ensure_connected函数
     
     def ensure_connected(self):
         if self.vector_store is None or self.elasticsearch_store is None:
             with self._init_lock:
                 if self.vector_store is None:
+                    # ============连接Milvus如果未连接则连接=====================
                     try:
-                        self.vector_store = Milvus(
-                            embedding_function=self.embeddings,
-                            collection_name="customer_service",
-                            connection_args={
-                                "uri": os.getenv("MILVUS_URI", "tcp://localhost:19530")
-                            },
-                            index_params={
-                                "metric_type": "COSINE"
-                            },
-                            auto_id=True
-                        )
-                        print("成功连接到Milvus向量数据库")
+                        if not connections.has_connection("default"):
+                            logger.info("未连接Milvus，尝试连接...")
+                            connections.connect("default", uri=os.getenv("MILVUS_URI", "tcp://localhost:19530"))
+                            logger.info("成功连接到Milvus")
+                        else:
+                            logger.info("pymilvus 已连接,无需重复连接")
                     except Exception as e:
-                        logger.error(f"连接Milvus向量数据库失败: {str(e)}")
-
+                        logger.error(f"建立 pymilvus 连接失败: {str(e)}")
+                        return None
+                    # ============连接Milvus向量数据库=====================
+                    max_attempts = 2
+                    for attempt in range(max_attempts):
+                        try:
+                            print(f"尝试连接Milvus (尝试 {attempt + 1}/{max_attempts})...")
+                            self.vector_store = Milvus(
+                                embedding_function=self.embeddings,
+                                collection_name="customer_service",
+                                connection_args={
+                                    "uri": os.getenv("MILVUS_URI", "tcp://localhost:19530"),
+                                    "alias": "default"
+                                },
+                                index_params={
+                                    "metric_type": "COSINE"
+                                },
+                                auto_id=True
+                            )
+                            logger.info("成功连接到Milvus向量数据库")
+                            break
+                        except Exception as e:
+                                logger.error(f"连接Milvus向量数据库失败 (尝试 {attempt + 1}/{max_attempts}): {str(e)}")
+                                if attempt < max_attempts - 1:
+                                    import time
+                                    time.sleep(2)  # 等待2秒后重试
+                                else:
+                                    logger.error("连接Milvus向量数据库次数耗尽,最终失败")
+                                    self.vector_store = None
                 if self.elasticsearch_store is None:
                     try:
                         self.elasticsearch_store = ElasticsearchStore(
@@ -158,7 +159,7 @@ class KnowledgeBase:
                             index_name="customer_service",
                             embedding=self.embeddings
                         )
-                        print("成功连接到Elasticsearch")
+                        logger.info("成功连接到Elasticsearch")
                         self._initialize_elasticsearch_index()
                     except Exception as e:
                         logger.error(f"连接Elasticsearch失败: {str(e)}")
@@ -231,15 +232,35 @@ class KnowledgeBase:
         documents = []
         for ques, anws in faq_items.items():
             content = f"问题: {ques}\n答案: {anws}"
+            # 确保包含所有必需的字段
+            metadata = {
+                "type": "faq",
+                "question": ques,
+                "mysql_id": "",
+                "intent_id": "",
+                "original_question": ques,
+                "action": ""
+            }
             doc = Document(
                 page_content=content,
-                metadata={"type": "faq", "question": ques}
+                metadata=metadata
             )
             doc.metadata["doc_id"] = self._generate_doc_id(doc)
             documents.append(doc)
         
-        self.vector_store.add_documents(documents)
-        self.elasticsearch_store.add_documents(documents)
+        try:
+            if self.vector_store:
+                self.vector_store.add_documents(documents)
+                print("成功添加FAQ到Milvus")
+        except Exception as e:
+            print(f"添加FAQ到Milvus失败: {str(e)}")
+        
+        try:
+            if self.elasticsearch_store:
+                self.elasticsearch_store.add_documents(documents)
+                print("成功添加FAQ到Elasticsearch")
+        except Exception as e:
+            print(f"添加FAQ到Elasticsearch失败: {str(e)}")
         
         self.cache.clear()
         

@@ -3,12 +3,30 @@ import os
 # 将当前项目的根目录加入搜索路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pymilvus import Collection, utility
+from pymilvus import Collection, utility, connections
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv('.env')
 
 class MilvusFieldChecker:
     def __init__(self):
         """初始化Milvus字段检查器"""
         self.collection_name = "customer_service"
+        self.milvus_uri = os.getenv("MILVUS_URI", "tcp://localhost:19530")
+        self.connect()
+    
+    def connect(self):
+        """连接到Milvus"""
+        try:
+            if not connections.has_connection("default"):
+                print(f"正在连接到Milvus: {self.milvus_uri}")
+                connections.connect("default", uri=self.milvus_uri)
+                print("Milvus连接成功")
+            else:
+                print("Milvus已有连接，无需重复连接")
+        except Exception as e:
+            print(f"连接Milvus失败: {str(e)}")
     
     def check_collection(self):
         """检查集合是否存在"""
@@ -85,7 +103,4 @@ if __name__ == "__main__":
     
     print("\n=== 样本数据检查 ===")
     checker.check_sample_data()
-    
-    # 注意：只有在确定需要重新导入数据时才使用以下代码
-    # print("\n=== 删除集合 ===")
-    # checker.drop_collection()
+   
