@@ -1,4 +1,4 @@
-"""Retrieval quality evaluator for RAG systems."""
+"""RAG 系统检索质量评测器。"""
 
 from __future__ import annotations
 
@@ -13,52 +13,52 @@ logger = logging.getLogger(__name__)
 
 
 class RetrievalEvaluator:
-    """Evaluate Recall@K, Precision@K, MRR and NDCG@K."""
+    """评估 Recall@K、Precision@K、MRR 和 NDCG@K。"""
 
     def __init__(self, knowledge_base: Any, config: EvalConfig | None = None) -> None:
-        """Initialize the retrieval evaluator.
+        """初始化检索评测器。
 
-        Args:
-            knowledge_base: Object exposing ``search(query, k=...)``.
-            config: Optional evaluation configuration.
+        参数:
+            knowledge_base: 暴露 ``search(query, k=...)`` 方法的对象。
+            config: 可选评测配置。
 
-        Returns:
-            None.
+        返回:
+            无。
 
-        Raises:
-            ValueError: If ``knowledge_base`` does not expose ``search``.
+        异常:
+            ValueError: 当 ``knowledge_base`` 未暴露 ``search`` 方法时抛出。
         """
         if not hasattr(knowledge_base, "search"):
-            raise ValueError("knowledge_base must expose a search(query, k=...) method")
+            raise ValueError("knowledge_base 必须暴露 search(query, k=...) 方法")
         self.knowledge_base = knowledge_base
         self.config = config or EvalConfig()
 
     async def evaluate_case(self, query: str, relevant_docs: list[str] | set[str], k: int | None = None) -> dict[str, Any]:
-        """Evaluate retrieval metrics for a single query.
+        """评估单条查询的检索指标。
 
-        Args:
-            query: User query.
-            relevant_docs: Relevant document IDs for the query.
-            k: Optional top-k override.
+        参数:
+            query: 用户查询。
+            relevant_docs: 该查询对应的相关文档 ID。
+            k: 可选 Top-K 覆盖值。
 
-        Returns:
-            Dictionary containing retrieved IDs and per-case metrics.
+        返回:
+            包含检索文档 ID 和单条用例指标的字典。
 
-        Raises:
-            No exceptions are raised; search failures return zero metrics.
+        异常:
+            不主动抛出异常；检索失败时返回零值指标。
         """
         top_k = k or self.config.top_k
         relevant_set = {str(doc_id) for doc_id in (relevant_docs or []) if str(doc_id)}
         if not query:
-            logger.warning("Empty query received by RetrievalEvaluator")
+            logger.warning("RetrievalEvaluator 收到空查询")
         if not relevant_set:
-            logger.warning("No relevant docs supplied for query: %s", query)
+            logger.warning("查询未提供相关文档: %s", query)
 
         try:
-            logger.info("Running retrieval evaluation for query=%s top_k=%s", query, top_k)
+            logger.info("执行检索评测，query=%s top_k=%s", query, top_k)
             results = await maybe_await(self.knowledge_base.search(query, k=top_k))
         except Exception as exc:
-            logger.error("Knowledge base search failed for query=%s: %s", query, exc)
+            logger.error("知识库检索失败，query=%s: %s", query, exc)
             results = []
 
         retrieved_ids = self._extract_doc_ids(results)[:top_k]
@@ -71,20 +71,20 @@ class RetrievalEvaluator:
         }
 
     async def evaluate_batch(self, cases: list[dict[str, Any]], k: int | None = None) -> dict[str, Any]:
-        """Evaluate retrieval metrics for multiple queries.
+        """评估多条查询的检索指标。
 
-        Args:
-            cases: Items with ``query`` and ``relevant_docs`` fields.
-            k: Optional top-k override.
+        参数:
+            cases: 包含 ``query`` 和 ``relevant_docs`` 字段的用例列表。
+            k: 可选 Top-K 覆盖值。
 
-        Returns:
-            Summary with averaged metrics, score and case-level details.
+        返回:
+            包含平均指标、总分和用例详情的汇总结果。
 
-        Raises:
-            No exceptions are raised; invalid cases are evaluated with defaults.
+        异常:
+            不主动抛出异常；非法用例会按默认值评估。
         """
         if not cases:
-            logger.warning("Empty retrieval case list")
+            logger.warning("检索评测用例列表为空")
             return self._empty_summary()
 
         details = [
@@ -104,22 +104,22 @@ class RetrievalEvaluator:
             "details": details,
         }
         summary["retrieval_score"] = self.calculate_score(summary)
-        logger.info("Retrieval evaluation complete: %.4f", summary["retrieval_score"])
+        logger.info("检索评测完成: %.4f", summary["retrieval_score"])
         return summary
 
     def calculate_metrics(self, retrieved_docs: list[str], relevant_docs: set[str], k: int) -> dict[str, float]:
-        """Calculate retrieval metrics for one ranked result list.
+        """计算单个排序检索结果列表的指标。
 
-        Args:
-            retrieved_docs: Ranked retrieved document IDs.
-            relevant_docs: Set of relevant document IDs.
-            k: Top-k denominator used by Precision@K and NDCG@K.
+        参数:
+            retrieved_docs: 按排名排序的检索文档 ID。
+            relevant_docs: 相关文档 ID 集合。
+            k: Precision@K 和 NDCG@K 使用的 Top-K 分母。
 
-        Returns:
-            Metric dictionary.
+        返回:
+            指标字典。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         top_k = max(1, k)
         hits = [doc_id for doc_id in retrieved_docs[:top_k] if doc_id in relevant_docs]
@@ -149,16 +149,16 @@ class RetrievalEvaluator:
         }
 
     def calculate_score(self, metrics: dict[str, float]) -> float:
-        """Aggregate retrieval metrics according to configured weights.
+        """按配置权重聚合检索指标。
 
-        Args:
-            metrics: Dictionary with retrieval metric values.
+        参数:
+            metrics: 包含检索指标值的字典。
 
-        Returns:
-            Weighted retrieval score.
+        返回:
+            加权检索质量得分。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         weights = self.config.retrieval_weights
         return (
@@ -169,16 +169,16 @@ class RetrievalEvaluator:
         )
 
     def _extract_doc_ids(self, results: Any) -> list[str]:
-        """Extract document IDs from LangChain-style retrieval results.
+        """从 LangChain 风格检索结果中提取文档 ID。
 
-        Args:
-            results: Iterable of ``(doc, score)`` tuples or document objects.
+        参数:
+            results: ``(doc, score)`` 元组或文档对象组成的可迭代结果。
 
-        Returns:
-            List of document IDs.
+        返回:
+            文档 ID 列表。
 
-        Raises:
-            No exceptions are raised; malformed items are skipped.
+        异常:
+            不主动抛出异常；格式异常的条目会被跳过。
         """
         doc_ids: list[str] = []
         for item in results or []:
@@ -188,22 +188,22 @@ class RetrievalEvaluator:
             if doc_id is None and isinstance(doc, dict):
                 doc_id = doc.get("doc_id") or doc.get("id")
             if doc_id is None:
-                logger.warning("Retrieved document missing doc_id metadata: %r", doc)
+                logger.warning("检索文档缺少 doc_id 元数据: %r", doc)
                 continue
             doc_ids.append(str(doc_id))
         return doc_ids
 
     def _empty_summary(self) -> dict[str, Any]:
-        """Return an empty retrieval summary.
+        """返回空检索评测汇总。
 
-        Args:
-            None.
+        参数:
+            无。
 
-        Returns:
-            Zero-valued summary.
+        返回:
+            全零汇总结果。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         return {
             "recall_at_k": 0.0,

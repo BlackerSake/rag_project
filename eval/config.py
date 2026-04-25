@@ -1,4 +1,4 @@
-"""Configuration for the independent RAG evaluation module."""
+"""独立 RAG 评测模块的配置。"""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class RetrievalWeights:
-    """Weights used to aggregate retrieval metrics."""
+    """检索质量指标聚合权重。"""
 
     recall_at_k: float = 0.30
     precision_at_k: float = 0.20
@@ -17,7 +17,7 @@ class RetrievalWeights:
 
 @dataclass(frozen=True)
 class GenerationWeights:
-    """Weights used to aggregate LLM-based generation metrics."""
+    """基于 LLM 的生成质量指标聚合权重。"""
 
     faithfulness: float = 0.35
     answer_relevancy: float = 0.30
@@ -27,7 +27,7 @@ class GenerationWeights:
 
 @dataclass(frozen=True)
 class E2EWeights:
-    """Weights used to aggregate end-to-end text similarity metrics."""
+    """端到端文本相似度指标聚合权重。"""
 
     rouge_1: float = 0.20
     rouge_2: float = 0.15
@@ -38,7 +38,7 @@ class E2EWeights:
 
 @dataclass(frozen=True)
 class FallbackWeights:
-    """Weights used to aggregate fallback capability metrics."""
+    """兜底能力指标聚合权重。"""
 
     reject_accuracy: float = 0.50
     non_hallucination_rate: float = 0.30
@@ -47,7 +47,7 @@ class FallbackWeights:
 
 @dataclass(frozen=True)
 class OverallWeights:
-    """Top-level balanced weights for the final RAG evaluation score."""
+    """RAG 最终总分的顶层平衡权重。"""
 
     retrieval: float = 0.30
     generation: float = 0.30
@@ -57,7 +57,7 @@ class OverallWeights:
 
 @dataclass(frozen=True)
 class EvalConfig:
-    """Runtime configuration and scoring weights for evaluators."""
+    """Evaluator 运行配置与评分权重。"""
 
     top_k: int = 5
     safe_reply_keywords: tuple[str, ...] = (
@@ -85,4 +85,3 @@ HIGH_GENERATION_CONFIG = EvalConfig(
 SAFETY_FIRST_CONFIG = EvalConfig(
     overall_weights=OverallWeights(retrieval=0.20, generation=0.25, e2e=0.15, fallback=0.40)
 )
-

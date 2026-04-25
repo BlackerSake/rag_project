@@ -1,4 +1,4 @@
-"""Shared helpers for RAG evaluators."""
+"""RAG 评测器共享工具函数。"""
 
 from __future__ import annotations
 
@@ -16,57 +16,57 @@ LLMClient = Callable[[str], Awaitable[str] | str]
 
 
 def clamp_score(value: Any, default: float = 0.0) -> float:
-    """Convert a value to a score in [0.0, 1.0].
+    """将任意值转换为 [0.0, 1.0] 区间内的分数。
 
-    Args:
-        value: Value returned by an evaluator or LLM.
-        default: Score used when conversion fails.
+    参数:
+        value: Evaluator 或 LLM 返回的原始值。
+        default: 转换失败时使用的默认分数。
 
-    Returns:
-        A float clipped to the closed interval [0.0, 1.0].
+    返回:
+        被裁剪到闭区间 [0.0, 1.0] 的浮点数。
 
-    Raises:
-        No exceptions are raised; invalid values use ``default``.
+    异常:
+        不主动抛出异常；非法值会使用 ``default``。
     """
     try:
         score = float(value)
     except (TypeError, ValueError):
-        logger.warning("Invalid score value %r, using default %.3f", value, default)
+        logger.warning("分数值无效: %r，使用默认值 %.3f", value, default)
         score = default
     return max(0.0, min(1.0, score))
 
 
 def safe_divide(numerator: float, denominator: float) -> float:
-    """Divide two numbers with zero protection.
+    """带除零保护地执行除法。
 
-    Args:
-        numerator: Numerator.
-        denominator: Denominator.
+    参数:
+        numerator: 分子。
+        denominator: 分母。
 
-    Returns:
-        ``numerator / denominator`` when denominator is non-zero, otherwise 0.0.
+    返回:
+        分母非零时返回 ``numerator / denominator``，否则返回 0.0。
 
-    Raises:
-        No exceptions are raised.
+    异常:
+        不主动抛出异常。
     """
     if denominator == 0:
-        logger.warning("Division by zero avoided; returning 0.0")
+        logger.warning("已避免除零，返回 0.0")
         return 0.0
     return numerator / denominator
 
 
 def extract_json_object(text: str) -> dict[str, Any]:
-    """Extract a JSON object from LLM output.
+    """从 LLM 输出中提取 JSON 对象。
 
-    Args:
-        text: Raw LLM response, possibly wrapped in Markdown fences.
+    参数:
+        text: LLM 原始响应，可能包含 Markdown 代码块包裹。
 
-    Returns:
-        Parsed JSON object.
+    返回:
+        解析后的 JSON 对象。
 
-    Raises:
-        ValueError: If no JSON object can be found.
-        json.JSONDecodeError: If JSON syntax is invalid.
+    异常:
+        ValueError: 找不到 JSON 对象时抛出。
+        json.JSONDecodeError: JSON 语法无效时抛出。
     """
     raw = (text or "").strip()
     if raw.startswith("```"):
@@ -79,11 +79,11 @@ def extract_json_object(text: str) -> dict[str, Any]:
         start = raw.find("{")
         end = raw.rfind("}")
         if start == -1 or end == -1 or end <= start:
-            raise ValueError("No JSON object found in LLM response")
+            raise ValueError("LLM 响应中未找到 JSON 对象")
         parsed = json.loads(raw[start : end + 1])
 
     if not isinstance(parsed, dict):
-        raise ValueError("LLM response JSON is not an object")
+        raise ValueError("LLM 响应 JSON 不是对象")
     return parsed
 
 
@@ -93,42 +93,42 @@ async def call_llm_json(
     fallback: dict[str, Any],
     call_name: str,
 ) -> dict[str, Any]:
-    """Call an LLM client and parse a JSON object with fallback handling.
+    """调用 LLM 客户端并解析 JSON，对失败情况进行降级处理。
 
-    Args:
-        llm_client: Async or sync callable accepting a prompt and returning text.
-        prompt: Prompt sent to the LLM.
-        fallback: Default object returned on call or parse failure.
-        call_name: Name used in log records.
+    参数:
+        llm_client: 接收 prompt 并返回文本的同步或异步可调用对象。
+        prompt: 发送给 LLM 的提示词。
+        fallback: 调用失败或解析失败时返回的默认对象。
+        call_name: 日志中使用的调用名称。
 
-    Returns:
-        Parsed JSON object or a copy of ``fallback``.
+    返回:
+        解析后的 JSON 对象，或 ``fallback`` 的副本。
 
-    Raises:
-        No exceptions are raised; all failures are logged and downgraded.
+    异常:
+        不主动抛出异常；所有失败都会记录日志并降级。
     """
     try:
-        logger.info("Calling LLM for %s", call_name)
+        logger.info("调用 LLM 执行 %s", call_name)
         response = llm_client(prompt)
         if inspect.isawaitable(response):
             response = await response
         return extract_json_object(str(response))
     except Exception as exc:
-        logger.error("LLM JSON call failed for %s: %s", call_name, exc)
+        logger.error("LLM JSON 调用失败，任务=%s: %s", call_name, exc)
         return dict(fallback)
 
 
 async def maybe_await(value: Any) -> Any:
-    """Await a value only when it is awaitable.
+    """仅在值可等待时执行 await。
 
-    Args:
-        value: Any value returned by an injected dependency.
+    参数:
+        value: 注入依赖返回的任意值。
 
-    Returns:
-        Awaited result for awaitables, otherwise the original value.
+    返回:
+        可等待值的 await 结果，或原始值。
 
-    Raises:
-        Propagates exceptions raised by the awaitable.
+    异常:
+        可等待对象自身抛出的异常会继续向外传播。
     """
     if inspect.isawaitable(value):
         return await value
@@ -136,37 +136,36 @@ async def maybe_await(value: Any) -> Any:
 
 
 async def run_sync(func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
-    """Run a synchronous function in the default executor.
+    """在默认执行器中运行同步函数。
 
-    Args:
-        func: Callable to execute.
-        *args: Positional arguments.
-        **kwargs: Keyword arguments.
+    参数:
+        func: 待执行的可调用对象。
+        *args: 位置参数。
+        **kwargs: 关键字参数。
 
-    Returns:
-        Callable result.
+    返回:
+        可调用对象的执行结果。
 
-    Raises:
-        Propagates exceptions raised by ``func``.
+    异常:
+        ``func`` 抛出的异常会继续向外传播。
     """
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, lambda: func(*args, **kwargs))
 
 
 def mean(values: list[float]) -> float:
-    """Compute the arithmetic mean with empty-list protection.
+    """带空列表保护地计算算术平均值。
 
-    Args:
-        values: List of numeric values.
+    参数:
+        values: 数值列表。
 
-    Returns:
-        Average value or 0.0 for an empty list.
+    返回:
+        平均值；空列表返回 0.0。
 
-    Raises:
-        No exceptions are raised.
+    异常:
+        不主动抛出异常。
     """
     if not values:
-        logger.warning("Mean requested for an empty list; returning 0.0")
+        logger.warning("空列表请求平均值，返回 0.0")
         return 0.0
     return sum(values) / len(values)
-

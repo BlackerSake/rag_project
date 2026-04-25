@@ -1,4 +1,4 @@
-"""Fallback capability evaluator for unanswerable RAG cases."""
+"""不可回答场景的 RAG 兜底能力评测器。"""
 
 from __future__ import annotations
 
@@ -12,42 +12,42 @@ logger = logging.getLogger(__name__)
 
 
 class FallbackEvaluator:
-    """Evaluate reject accuracy, hallucination rate and safe reply rate."""
+    """评估拒答准确率、幻觉率和安全回复率。"""
 
     def __init__(self, rag_system: Any, llm_client: LLMClient, config: EvalConfig | None = None) -> None:
-        """Initialize the fallback evaluator.
+        """初始化兜底能力评测器。
 
-        Args:
-            rag_system: Object exposing async or sync ``answer(question)``.
-            llm_client: Async or sync callable accepting a prompt and returning text.
-            config: Optional evaluation configuration.
+        参数:
+            rag_system: 暴露同步或异步 ``answer(question)`` 方法的对象。
+            llm_client: 接收 prompt 并返回文本的同步或异步可调用对象。
+            config: 可选评测配置。
 
-        Returns:
-            None.
+        返回:
+            无。
 
-        Raises:
-            ValueError: If required callables are missing.
+        异常:
+            ValueError: 当必要可调用对象缺失时抛出。
         """
         if not hasattr(rag_system, "answer") or not callable(rag_system.answer):
-            raise ValueError("rag_system must expose an answer(question) method")
+            raise ValueError("rag_system 必须暴露 answer(question) 方法")
         if not callable(llm_client):
-            raise ValueError("llm_client must be callable")
+            raise ValueError("llm_client 必须可调用")
         self.rag_system = rag_system
         self.llm_client = llm_client
         self.config = config or EvalConfig()
 
     async def evaluate_case(self, case: dict[str, Any]) -> dict[str, Any]:
-        """Evaluate fallback behavior for one unanswerable question.
+        """评估单个不可回答问题的兜底行为。
 
-        Args:
-            case: Item with ``question``, optional ``retrieved_context`` and
-                ``expected_behavior`` fields.
+        参数:
+            case: 包含 ``question``、可选 ``retrieved_context`` 和
+                ``expected_behavior`` 字段的用例。
 
-        Returns:
-            Per-case fallback metrics and LLM judgments.
+        返回:
+            单条用例的兜底指标和 LLM 判断结果。
 
-        Raises:
-            No exceptions are raised; RAG/LLM failures are downgraded.
+        异常:
+            不主动抛出异常；RAG/LLM 失败会被降级处理。
         """
         question = case.get("question") or case.get("unanswerable_question", "")
         expected_behavior = case.get("expected_behavior", "reject")
@@ -64,7 +64,7 @@ class FallbackEvaluator:
         has_hallucination = bool(hallucination_result.get("has_hallucination", False))
 
         logger.info(
-            "Fallback case evaluated: reject_correct=%s has_hallucination=%s is_safe=%s",
+            "兜底单用例评测完成: reject_correct=%s has_hallucination=%s is_safe=%s",
             reject_correct,
             has_hallucination,
             is_rejection,
@@ -84,19 +84,19 @@ class FallbackEvaluator:
         }
 
     async def evaluate_batch(self, cases: list[dict[str, Any]]) -> dict[str, Any]:
-        """Evaluate fallback capability for multiple unanswerable cases.
+        """评估多条不可回答用例的兜底能力。
 
-        Args:
-            cases: Unanswerable test cases.
+        参数:
+            cases: 不可回答测试用例列表。
 
-        Returns:
-            Reject accuracy, hallucination rate, safe reply rate and score.
+        返回:
+            拒答准确率、幻觉率、安全回复率和聚合得分。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         if not cases:
-            logger.warning("Empty fallback case list")
+            logger.warning("兜底评测用例列表为空")
             return self._empty_summary()
 
         details = [await self.evaluate_case(case) for case in cases]
@@ -122,20 +122,20 @@ class FallbackEvaluator:
             "details": details,
         }
         summary["fallback_score"] = self.calculate_score(summary)
-        logger.info("Fallback batch evaluated: %.4f", summary["fallback_score"])
+        logger.info("兜底批量评测完成: %.4f", summary["fallback_score"])
         return summary
 
     def calculate_score(self, metrics: dict[str, float]) -> float:
-        """Aggregate fallback metrics according to configured weights.
+        """按配置权重聚合兜底能力指标。
 
-        Args:
-            metrics: Dictionary with fallback metric values.
+        参数:
+            metrics: 包含兜底能力指标值的字典。
 
-        Returns:
-            Weighted fallback score.
+        返回:
+            加权兜底能力得分。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         weights = self.config.fallback_weights
         return (
@@ -145,37 +145,37 @@ class FallbackEvaluator:
         )
 
     async def _answer_question(self, question: str) -> str:
-        """Call the injected RAG system.
+        """调用注入的 RAG 系统。
 
-        Args:
-            question: User question.
+        参数:
+            question: 用户问题。
 
-        Returns:
-            RAG answer text or a safe error fallback.
+        返回:
+            RAG 回答文本，或安全错误兜底回复。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         try:
-            logger.info("Calling RAG system for fallback question")
+            logger.info("调用 RAG 系统处理兜底问题")
             answer = await maybe_await(self.rag_system.answer(question))
             return str(answer or "")
         except Exception as exc:
-            logger.error("RAG answer call failed: %s", exc)
+            logger.error("RAG 回答调用失败: %s", exc)
             return "抱歉，当前无法回答该问题。"
 
     async def _judge_scope(self, question: str, retrieved_context: list[str] | str) -> dict[str, Any]:
-        """Judge whether a question is in knowledge-base scope.
+        """判断问题是否在知识库覆盖范围内。
 
-        Args:
-            question: User question.
-            retrieved_context: Retrieved context snippets.
+        参数:
+            question: 用户问题。
+            retrieved_context: 检索上下文片段。
 
-        Returns:
-            JSON judgment with ``in_scope`` and ``reasoning``.
+        返回:
+            包含 ``in_scope`` 和 ``reasoning`` 的 JSON 判断结果。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         context = self._join_context(retrieved_context)
         prompt = f"""判断以下问题是否在知识库的覆盖范围内。
@@ -188,22 +188,22 @@ class FallbackEvaluator:
         return await call_llm_json(
             self.llm_client,
             prompt,
-            {"in_scope": False, "reasoning": "LLM evaluation failed or returned invalid JSON."},
+            {"in_scope": False, "reasoning": "LLM 评测失败或返回了无效 JSON。"},
             "fallback_scope",
         )
 
     async def _judge_hallucination(self, retrieved_context: list[str] | str, answer: str) -> dict[str, Any]:
-        """Judge whether an answer contains unsupported content.
+        """判断答案是否包含上下文不支持的内容。
 
-        Args:
-            retrieved_context: Retrieved context snippets.
-            answer: RAG answer.
+        参数:
+            retrieved_context: 检索上下文片段。
+            answer: RAG 回答。
 
-        Returns:
-            JSON judgment with hallucination fields.
+        返回:
+            包含幻觉相关字段的 JSON 判断结果。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         context = self._join_context(retrieved_context)
         prompt = f"""判断答案是否包含幻觉内容。
@@ -221,49 +221,49 @@ class FallbackEvaluator:
         )
 
     def _is_safe_reply(self, answer: str) -> bool:
-        """Check whether an answer contains a safe fallback keyword.
+        """检查答案是否包含安全兜底关键词。
 
-        Args:
-            answer: RAG answer.
+        参数:
+            answer: RAG 回答。
 
-        Returns:
-            True when any configured safe keyword appears.
+        返回:
+            任一已配置安全关键词出现时返回 True。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         if not answer:
-            logger.warning("Empty answer treated as unsafe fallback reply")
+            logger.warning("空回答按非安全兜底回复处理")
             return False
         return any(keyword in answer for keyword in self.config.safe_reply_keywords)
 
     def _join_context(self, retrieved_context: list[str] | str) -> str:
-        """Normalize retrieved context into text.
+        """将检索上下文标准化为文本。
 
-        Args:
-            retrieved_context: List of snippets or pre-joined context.
+        参数:
+            retrieved_context: 片段列表或已拼接的上下文。
 
-        Returns:
-            Context string.
+        返回:
+            上下文字符串。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         if isinstance(retrieved_context, list):
             return "\n".join(str(item) for item in retrieved_context if str(item).strip())
         return str(retrieved_context or "")
 
     def _empty_summary(self) -> dict[str, Any]:
-        """Return an empty fallback summary.
+        """返回空兜底能力评测汇总。
 
-        Args:
-            None.
+        参数:
+            无。
 
-        Returns:
-            Zero-valued summary.
+        返回:
+            全零汇总结果。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         return {
             "reject_accuracy": 0.0,
@@ -272,4 +272,3 @@ class FallbackEvaluator:
             "fallback_score": 0.0,
             "details": [],
         }
-

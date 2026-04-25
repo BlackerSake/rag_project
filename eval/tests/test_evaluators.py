@@ -1,4 +1,4 @@
-"""Unit tests for the independent RAG evaluators."""
+"""独立 RAG 评测器的单元测试。"""
 
 from __future__ import annotations
 
@@ -17,26 +17,26 @@ from eval.evaluators import E2EEvaluator, FallbackEvaluator, GenerationEvaluator
 
 
 class FakeKnowledgeBase:
-    """Minimal knowledge base mock used by RetrievalEvaluator tests."""
+    """RetrievalEvaluator 测试使用的最小知识库 mock。"""
 
     def __init__(self, results):
-        """Initialize with static retrieval results."""
+        """使用静态检索结果初始化。"""
         self.results = results
 
     def search(self, query, k=5):
-        """Return the first k mocked results."""
+        """返回前 k 条模拟检索结果。"""
         return self.results[:k]
 
 
 class FakeRAG:
-    """Minimal RAG mock used by FallbackEvaluator tests."""
+    """FallbackEvaluator 测试使用的最小 RAG mock。"""
 
     def __init__(self, answer_text):
-        """Initialize with static answer text."""
+        """使用静态回答文本初始化。"""
         self.answer_text = answer_text
 
     async def answer(self, question):
-        """Return the mocked answer asynchronously."""
+        """异步返回模拟回答。"""
         return self.answer_text
 
 

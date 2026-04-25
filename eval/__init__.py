@@ -1,7 +1,6 @@
 """
-Independent RAG evaluation package.
+独立 RAG 评测包。
 
-The evaluation package depends on the main RAG system through injected
-interfaces only. The main system does not import this package.
+评测包只通过注入接口依赖主 RAG 系统。
+主系统不导入本包，从而保持单向依赖。
 """
-

@@ -1,4 +1,4 @@
-"""LLM-based generation quality evaluator."""
+"""基于 LLM 的生成质量评测器。"""
 
 from __future__ import annotations
 
@@ -12,23 +12,23 @@ logger = logging.getLogger(__name__)
 
 
 class GenerationEvaluator:
-    """Evaluate faithfulness, answer relevancy, context relevancy and recall."""
+    """评估忠实度、答案相关性、上下文相关性和上下文召回。"""
 
     def __init__(self, llm_client: LLMClient, config: EvalConfig | None = None) -> None:
-        """Initialize the generation evaluator.
+        """初始化生成质量评测器。
 
-        Args:
-            llm_client: Async or sync callable accepting a prompt and returning text.
-            config: Optional evaluation configuration.
+        参数:
+            llm_client: 接收 prompt 并返回文本的同步或异步可调用对象。
+            config: 可选评测配置。
 
-        Returns:
-            None.
+        返回:
+            无。
 
-        Raises:
-            ValueError: If ``llm_client`` is not callable.
+        异常:
+            ValueError: 当 ``llm_client`` 不可调用时抛出。
         """
         if not callable(llm_client):
-            raise ValueError("llm_client must be callable")
+            raise ValueError("llm_client 必须可调用")
         self.llm_client = llm_client
         self.config = config or EvalConfig()
 
@@ -39,19 +39,19 @@ class GenerationEvaluator:
         ground_truth_answer: str,
         retrieved_context: list[str] | str,
     ) -> dict[str, Any]:
-        """Evaluate generation quality for one case with a single LLM call.
+        """通过一次 LLM 调用评估单条用例的生成质量。
 
-        Args:
-            question: User question.
-            generated_answer: Answer produced by the RAG system.
-            ground_truth_answer: Reference answer.
-            retrieved_context: Retrieved context snippets.
+        参数:
+            question: 用户问题。
+            generated_answer: RAG 系统生成的答案。
+            ground_truth_answer: 参考答案。
+            retrieved_context: 检索上下文片段。
 
-        Returns:
-            Scores, reasoning details and aggregate generation score.
+        返回:
+            各项分数、推理说明和生成质量聚合得分。
 
-        Raises:
-            No exceptions are raised; LLM failures use zero-score fallback.
+        异常:
+            不主动抛出异常；LLM 失败时使用零分降级结果。
         """
         prompt = self._build_prompt(question, generated_answer, ground_truth_answer, retrieved_context)
         fallback = {
@@ -60,10 +60,10 @@ class GenerationEvaluator:
             "context_relevancy": 0.0,
             "context_recall": 0.0,
             "reasoning": {
-                "faithfulness_detail": "LLM evaluation failed or returned invalid JSON.",
-                "answer_relevancy_detail": "LLM evaluation failed or returned invalid JSON.",
-                "context_relevancy_detail": "LLM evaluation failed or returned invalid JSON.",
-                "context_recall_detail": "LLM evaluation failed or returned invalid JSON.",
+                "faithfulness_detail": "LLM 评测失败或返回了无效 JSON。",
+                "answer_relevancy_detail": "LLM 评测失败或返回了无效 JSON。",
+                "context_relevancy_detail": "LLM 评测失败或返回了无效 JSON。",
+                "context_recall_detail": "LLM 评测失败或返回了无效 JSON。",
             },
         }
         result = await call_llm_json(self.llm_client, prompt, fallback, "generation_quality")
@@ -75,23 +75,23 @@ class GenerationEvaluator:
             "reasoning": result.get("reasoning", fallback["reasoning"]),
         }
         normalized["generation_score"] = self.calculate_score(normalized)
-        logger.info("Generation case evaluated: %.4f", normalized["generation_score"])
+        logger.info("生成质量单用例评测完成: %.4f", normalized["generation_score"])
         return normalized
 
     async def evaluate_batch(self, cases: list[dict[str, Any]]) -> dict[str, Any]:
-        """Evaluate generation quality for multiple cases.
+        """评估多条用例的生成质量。
 
-        Args:
-            cases: Items with question, answer, ground truth and context fields.
+        参数:
+            cases: 包含问题、答案、参考答案和上下文字段的用例列表。
 
-        Returns:
-            Averaged metrics, aggregate score and per-case details.
+        返回:
+            平均指标、聚合得分和用例详情。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         if not cases:
-            logger.warning("Empty generation case list")
+            logger.warning("生成质量评测用例列表为空")
             return self._empty_summary()
 
         details = [
@@ -111,20 +111,20 @@ class GenerationEvaluator:
             "details": details,
         }
         summary["generation_score"] = self.calculate_score(summary)
-        logger.info("Generation batch evaluated: %.4f", summary["generation_score"])
+        logger.info("生成质量批量评测完成: %.4f", summary["generation_score"])
         return summary
 
     def calculate_score(self, metrics: dict[str, float]) -> float:
-        """Aggregate generation metrics according to configured weights.
+        """按配置权重聚合生成质量指标。
 
-        Args:
-            metrics: Dictionary with generation metric values.
+        参数:
+            metrics: 包含生成质量指标值的字典。
 
-        Returns:
-            Weighted generation score.
+        返回:
+            加权生成质量得分。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         weights = self.config.generation_weights
         return (
@@ -141,19 +141,19 @@ class GenerationEvaluator:
         ground_truth_answer: str,
         retrieved_context: list[str] | str,
     ) -> str:
-        """Build the combined generation-quality prompt.
+        """构造生成质量的合并评测提示词。
 
-        Args:
-            question: User question.
-            generated_answer: Generated answer.
-            ground_truth_answer: Reference answer.
-            retrieved_context: Context snippets or pre-joined context.
+        参数:
+            question: 用户问题。
+            generated_answer: 生成答案。
+            ground_truth_answer: 参考答案。
+            retrieved_context: 上下文片段或已拼接的上下文。
 
-        Returns:
-            Prompt string.
+        返回:
+            提示词字符串。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         if isinstance(retrieved_context, list):
             context = "\n".join(str(item) for item in retrieved_context if str(item).strip())
@@ -186,16 +186,16 @@ class GenerationEvaluator:
 }}"""
 
     def _empty_summary(self) -> dict[str, Any]:
-        """Return an empty generation summary.
+        """返回空生成质量评测汇总。
 
-        Args:
-            None.
+        参数:
+            无。
 
-        Returns:
-            Zero-valued summary.
+        返回:
+            全零汇总结果。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         return {
             "faithfulness": 0.0,
@@ -205,4 +205,3 @@ class GenerationEvaluator:
             "generation_score": 0.0,
             "details": [],
         }
-

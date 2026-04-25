@@ -1,4 +1,4 @@
-"""One-command runner for the independent RAG evaluation module."""
+"""独立 RAG 评测模块的一键运行入口。"""
 
 from __future__ import annotations
 
@@ -11,6 +11,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from pathlib import Path
+from dotenv import load_dotenv
+
+# 定位到项目根目录（假设 run_eval.py 在 eval/ 下）
+env_path = Path(__file__).parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -22,19 +29,19 @@ logger = logging.getLogger(__name__)
 
 
 class LangGraphRAGAdapter:
-    """Adapter that exposes ``answer(question)`` for the existing LangGraph app."""
+    """为现有 LangGraph 应用提供 ``answer(question)`` 接口的适配器。"""
 
     def __init__(self) -> None:
-        """Initialize the adapter.
+        """初始化 LangGraph 适配器。
 
-        Args:
-            None.
+        参数:
+            无。
 
-        Returns:
-            None.
+        返回:
+            无。
 
-        Raises:
-            ImportError: If the main graph dependencies cannot be imported.
+        异常:
+            ImportError: 当主系统图依赖无法导入时抛出。
         """
         from core.builder import compiled_graph
         from langchain_core.messages import HumanMessage
@@ -43,19 +50,19 @@ class LangGraphRAGAdapter:
         self.human_message_cls = HumanMessage
 
     async def answer(self, question: str) -> str:
-        """Run the main RAG graph and return the latest assistant answer.
+        """运行主 RAG 图并返回最新助手回复。
 
-        Args:
-            question: User question.
+        参数:
+            question: 用户问题。
 
-        Returns:
-            Assistant answer text.
+        返回:
+            助手回复文本。
 
-        Raises:
-            No exceptions are raised; failures return a safe fallback answer.
+        异常:
+            不主动抛出异常；调用失败时返回安全兜底回复。
         """
         try:
-            logger.info("Invoking LangGraph RAG adapter")
+            logger.info("调用 LangGraph RAG 适配器")
             state = {
                 "messages": [self.human_message_cls(content=question)],
                 "history": [],
@@ -71,21 +78,21 @@ class LangGraphRAGAdapter:
                 latest = messages[-1]
                 return str(getattr(latest, "content", latest) or "")
         except Exception as exc:
-            logger.error("LangGraph RAG invocation failed: %s", exc)
+            logger.error("LangGraph RAG 调用失败: %s", exc)
         return "抱歉，当前无法回答该问题。"
 
 
 async def default_llm_client(prompt: str) -> str:
-    """Evaluate prompts through the project's configured chat model.
+    """通过项目已配置的聊天模型执行评测提示词。
 
-    Args:
-        prompt: Evaluation prompt.
+    参数:
+        prompt: 评测提示词。
 
-    Returns:
-        LLM response text.
+    返回:
+        LLM 响应文本。
 
-    Raises:
-        Propagates model invocation errors to evaluator-level fallback handling.
+    异常:
+        模型调用异常会继续抛出，由 Evaluator 层统一降级处理。
     """
     from core.models import model
     from langchain_core.messages import HumanMessage
@@ -95,17 +102,17 @@ async def default_llm_client(prompt: str) -> str:
 
 
 def load_cases(path: Path) -> dict[str, list[dict[str, Any]]]:
-    """Load evaluation cases from JSON.
+    """从 JSON 文件加载评测用例。
 
-    Args:
-        path: JSON test-case path.
+    参数:
+        path: JSON 测试用例路径。
 
-    Returns:
-        Case payload with default empty lists for missing sections.
+    返回:
+        评测用例数据；缺失的评测分区会使用空列表补齐。
 
-    Raises:
-        FileNotFoundError: If path does not exist.
-        json.JSONDecodeError: If path is invalid JSON.
+    异常:
+        FileNotFoundError: 当路径不存在时抛出。
+        json.JSONDecodeError: 当 JSON 格式无效时抛出。
     """
     with path.open("r", encoding="utf-8") as file:
         payload = json.load(file)
@@ -118,17 +125,17 @@ def load_cases(path: Path) -> dict[str, list[dict[str, Any]]]:
 
 
 def overall_score(report: dict[str, Any], config: EvalConfig) -> float:
-    """Calculate the final weighted score.
+    """计算最终加权总分。
 
-    Args:
-        report: Report containing four metric sections.
-        config: Evaluation configuration.
+    参数:
+        report: 包含四类评测结果的报告。
+        config: 评测配置。
 
-    Returns:
-        Overall weighted score.
+    返回:
+        最终加权总分。
 
-    Raises:
-        No exceptions are raised.
+    异常:
+        不主动抛出异常。
     """
     weights = config.overall_weights
     return (
@@ -140,18 +147,18 @@ def overall_score(report: dict[str, Any], config: EvalConfig) -> float:
 
 
 async def run_evaluation(cases_path: Path, output_path: Path | None = None, enable_bertscore: bool = True) -> dict[str, Any]:
-    """Run all RAG evaluation stages.
+    """运行完整 RAG 评测流程。
 
-    Args:
-        cases_path: Path to JSON test cases.
-        output_path: Optional report output path.
-        enable_bertscore: Whether to calculate BERTScore.
+    参数:
+        cases_path: JSON 测试用例路径。
+        output_path: 可选的评测报告输出路径。
+        enable_bertscore: 是否计算 BERTScore。
 
-    Returns:
-        Full evaluation report.
+    返回:
+        完整评测报告。
 
-    Raises:
-        Propagates test-case loading errors.
+    异常:
+        测试用例加载异常会继续抛出。
     """
     cases = load_cases(cases_path)
     config = EvalConfig()
@@ -167,13 +174,13 @@ async def run_evaluation(cases_path: Path, output_path: Path | None = None, enab
     e2e = E2EEvaluator(config, enable_bertscore=enable_bertscore)
     fallback = FallbackEvaluator(rag_system, llm_client, config)
 
-    logger.info("Starting retrieval evaluation")
+    logger.info("开始检索质量评测")
     retrieval_report = await retrieval.evaluate_batch(cases["retrieval_cases"], k=config.top_k)
-    logger.info("Starting generation evaluation")
+    logger.info("开始生成质量评测")
     generation_report = await generation.evaluate_batch(cases["generation_cases"])
-    logger.info("Starting E2E evaluation")
+    logger.info("开始端到端质量评测")
     e2e_report = e2e.evaluate_batch(cases["e2e_cases"])
-    logger.info("Starting fallback evaluation")
+    logger.info("开始兜底能力评测")
     fallback_report = await fallback.evaluate_batch(cases["fallback_cases"])
 
     report = {
@@ -188,26 +195,26 @@ async def run_evaluation(cases_path: Path, output_path: Path | None = None, enab
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with output_path.open("w", encoding="utf-8") as file:
             json.dump(report, file, ensure_ascii=False, indent=2)
-        logger.info("Evaluation report written to %s", output_path)
+        logger.info("评测报告已写入: %s", output_path)
     return report
 
 
 def main() -> None:
-    """Parse CLI arguments and run evaluation.
+    """解析命令行参数并运行评测。
 
-    Args:
-        None.
+    参数:
+        无。
 
-    Returns:
-        None.
+    返回:
+        无。
 
-    Raises:
-        Propagates unhandled setup errors to the shell.
+    异常:
+        未处理的初始化异常会继续抛出到命令行。
     """
-    parser = argparse.ArgumentParser(description="Run independent RAG evaluation.")
-    parser.add_argument("--cases", type=Path, default=Path("eval/data/test_cases.json"), help="Test cases JSON path")
-    parser.add_argument("--output", type=Path, default=Path("eval/eval_report.json"), help="Report JSON output path")
-    parser.add_argument("--no-bertscore", action="store_true", help="Disable BERTScore calculation")
+    parser = argparse.ArgumentParser(description="运行独立 RAG 评测。")
+    parser.add_argument("--cases", type=Path, default=Path("eval/data/test_cases.json"), help="测试用例 JSON 路径")
+    parser.add_argument("--output", type=Path, default=Path("eval/eval_report.json"), help="评测报告 JSON 输出路径")
+    parser.add_argument("--no-bertscore", action="store_true", help="禁用 BERTScore 计算")
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -226,4 +233,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

@@ -1,4 +1,4 @@
-"""Generate starter evaluation cases from FAQ-style JSON data."""
+"""从 FAQ 风格 JSON 数据生成初始评测用例。"""
 
 from __future__ import annotations
 
@@ -13,33 +13,33 @@ logger = logging.getLogger(__name__)
 
 
 def stable_doc_id(text: str) -> str:
-    """Generate a stable document ID from text.
+    """根据文本生成稳定文档 ID。
 
-    Args:
-        text: Source text.
+    参数:
+        text: 源文本。
 
-    Returns:
-        Short SHA-256 based ID.
+    返回:
+        基于 SHA-256 的短 ID。
 
-    Raises:
-        No exceptions are raised.
+    异常:
+        不主动抛出异常。
     """
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
 def generate_cases_from_faq(faq_path: Path, limit: int = 20) -> dict[str, list[dict[str, Any]]]:
-    """Generate basic retrieval, generation and E2E cases from FAQ data.
+    """从 FAQ 数据生成基础检索、生成和端到端评测用例。
 
-    Args:
-        faq_path: Path to a JSON FAQ file containing question-answer pairs.
-        limit: Maximum number of FAQ items to convert.
+    参数:
+        faq_path: 包含问答对的 FAQ JSON 文件路径。
+        limit: 最多转换的 FAQ 条目数量。
 
-    Returns:
-        Test case payload compatible with ``run_eval.py``.
+    返回:
+        与 ``run_eval.py`` 兼容的测试用例数据。
 
-    Raises:
-        FileNotFoundError: If ``faq_path`` does not exist.
-        json.JSONDecodeError: If the FAQ file is not valid JSON.
+    异常:
+        FileNotFoundError: 当 ``faq_path`` 不存在时抛出。
+        json.JSONDecodeError: 当 FAQ 文件不是合法 JSON 时抛出。
     """
     with faq_path.open("r", encoding="utf-8") as file:
         payload = json.load(file)
@@ -49,7 +49,7 @@ def generate_cases_from_faq(faq_path: Path, limit: int = 20) -> dict[str, list[d
     elif isinstance(payload, list):
         items = [(item.get("question", ""), item.get("answer", "")) for item in payload if isinstance(item, dict)]
     else:
-        logger.warning("Unsupported FAQ payload type: %s", type(payload).__name__)
+        logger.warning("不支持的 FAQ 数据类型: %s", type(payload).__name__)
         items = []
 
     retrieval_cases = []
@@ -59,7 +59,7 @@ def generate_cases_from_faq(faq_path: Path, limit: int = 20) -> dict[str, list[d
         question = str(question or "").strip()
         answer = str(answer or "").strip()
         if not question or not answer:
-            logger.warning("Skipping empty FAQ item: question=%r answer=%r", question, answer)
+            logger.warning("跳过空 FAQ 条目: question=%r answer=%r", question, answer)
             continue
         doc_id = stable_doc_id(f"{question}\n{answer}")
         context = f"问题: {question}\n答案: {answer}"
@@ -95,21 +95,21 @@ def generate_cases_from_faq(faq_path: Path, limit: int = 20) -> dict[str, list[d
 
 
 def main() -> None:
-    """Run the case generator from the command line.
+    """从命令行运行用例生成器。
 
-    Args:
-        None.
+    参数:
+        无。
 
-    Returns:
-        None.
+    返回:
+        无。
 
-    Raises:
-        Propagates file and JSON errors to the shell.
+    异常:
+        文件和 JSON 异常会继续抛出到命令行。
     """
-    parser = argparse.ArgumentParser(description="Generate RAG evaluation test cases from FAQ JSON.")
-    parser.add_argument("--faq", type=Path, default=Path("faq_data.json"), help="FAQ JSON path")
-    parser.add_argument("--output", type=Path, default=Path("eval/data/test_cases.json"), help="Output JSON path")
-    parser.add_argument("--limit", type=int, default=20, help="Maximum number of FAQ items")
+    parser = argparse.ArgumentParser(description="从 FAQ JSON 生成 RAG 评测测试用例。")
+    parser.add_argument("--faq", type=Path, default=Path("faq_data.json"), help="FAQ JSON 路径")
+    parser.add_argument("--output", type=Path, default=Path("eval/data/test_cases.json"), help="输出 JSON 路径")
+    parser.add_argument("--limit", type=int, default=20, help="最多转换的 FAQ 条目数量")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -117,9 +117,8 @@ def main() -> None:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8") as file:
         json.dump(cases, file, ensure_ascii=False, indent=2)
-    logger.info("Generated evaluation cases at %s", args.output)
+    logger.info("评测用例已生成: %s", args.output)
 
 
 if __name__ == "__main__":
     main()
-

@@ -21,9 +21,7 @@ search_evaluation.log
 rdb_data/
 rdb_data_meta_kv/
 
-#codex 数据
-.codex
 
 #github Copilot 数据
 .github/
-
+.codex

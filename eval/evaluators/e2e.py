@@ -1,4 +1,4 @@
-"""End-to-end quality evaluator for generated RAG answers."""
+"""RAG 生成答案的端到端质量评测器。"""
 
 from __future__ import annotations
 
@@ -13,41 +13,41 @@ logger = logging.getLogger(__name__)
 
 
 class E2EEvaluator:
-    """Evaluate ROUGE, BLEU and BERTScore for generated answers."""
+    """评估生成答案的 ROUGE、BLEU 和 BERTScore。"""
 
     def __init__(self, config: EvalConfig | None = None, enable_bertscore: bool = True) -> None:
-        """Initialize the end-to-end evaluator.
+        """初始化端到端质量评测器。
 
-        Args:
-            config: Optional evaluation configuration.
-            enable_bertscore: Whether to attempt BERTScore calculation.
+        参数:
+            config: 可选评测配置。
+            enable_bertscore: 是否尝试计算 BERTScore。
 
-        Returns:
-            None.
+        返回:
+            无。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         self.config = config or EvalConfig()
         self.enable_bertscore = enable_bertscore
 
     def evaluate_case(self, ground_truth_answer: str, generated_answer: str) -> dict[str, float]:
-        """Evaluate one generated answer against one reference answer.
+        """用一个参考答案评估一条生成答案。
 
-        Args:
-            ground_truth_answer: Reference answer.
-            generated_answer: Generated answer.
+        参数:
+            ground_truth_answer: 参考答案。
+            generated_answer: 生成答案。
 
-        Returns:
-            Dictionary with ROUGE-1/2/L, BLEU, BERTScore F1 and aggregate score.
+        返回:
+            包含 ROUGE-1/2/L、BLEU、BERTScore F1 和聚合得分的字典。
 
-        Raises:
-            No exceptions are raised; metric failures are logged and downgraded.
+        异常:
+            不主动抛出异常；指标计算失败会记录日志并降级。
         """
         ref_tokens = self._tokenize(ground_truth_answer)
         hyp_tokens = self._tokenize(generated_answer)
         if not ref_tokens or not hyp_tokens:
-            logger.warning("Empty reference or hypothesis tokens in E2E evaluation")
+            logger.warning("端到端评测中的参考答案或生成答案分词为空")
 
         rouge_scores = self._rouge_scores(ref_tokens, hyp_tokens)
         bleu = self._bleu_score(ref_tokens, hyp_tokens)
@@ -59,23 +59,23 @@ class E2EEvaluator:
             "bertscore_f1": bertscore_f1,
         }
         metrics["e2e_score"] = self.calculate_score(metrics)
-        logger.info("E2E case evaluated: %.4f", metrics["e2e_score"])
+        logger.info("端到端单用例评测完成: %.4f", metrics["e2e_score"])
         return metrics
 
     def evaluate_batch(self, cases: list[dict[str, Any]]) -> dict[str, Any]:
-        """Evaluate end-to-end quality for multiple answer pairs.
+        """评估多组答案对的端到端质量。
 
-        Args:
-            cases: Items with ``ground_truth_answer`` and ``generated_answer``.
+        参数:
+            cases: 包含 ``ground_truth_answer`` 和 ``generated_answer`` 的用例列表。
 
-        Returns:
-            Averaged metrics, aggregate score and per-case details.
+        返回:
+            平均指标、聚合得分和用例详情。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         if not cases:
-            logger.warning("Empty E2E case list")
+            logger.warning("端到端评测用例列表为空")
             return self._empty_summary()
 
         details = [
@@ -94,20 +94,20 @@ class E2EEvaluator:
             "details": details,
         }
         summary["e2e_score"] = self.calculate_score(summary)
-        logger.info("E2E batch evaluated: %.4f", summary["e2e_score"])
+        logger.info("端到端批量评测完成: %.4f", summary["e2e_score"])
         return summary
 
     def calculate_score(self, metrics: dict[str, float]) -> float:
-        """Aggregate E2E metrics according to configured weights.
+        """按配置权重聚合端到端指标。
 
-        Args:
-            metrics: Dictionary with E2E metric values.
+        参数:
+            metrics: 包含端到端指标值的字典。
 
-        Returns:
-            Weighted E2E score.
+        返回:
+            加权端到端质量得分。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         weights = self.config.e2e_weights
         return (
@@ -119,16 +119,16 @@ class E2EEvaluator:
         )
 
     def _tokenize(self, text: str) -> list[str]:
-        """Tokenize Chinese text with jieba when available.
+        """优先使用 jieba 对中文文本分词。
 
-        Args:
-            text: Raw answer text.
+        参数:
+            text: 原始答案文本。
 
-        Returns:
-            Token list.
+        返回:
+            分词列表。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         cleaned = str(text or "").strip()
         if not cleaned:
@@ -138,21 +138,21 @@ class E2EEvaluator:
 
             return [token for token in jieba.cut(cleaned) if token.strip()]
         except Exception as exc:
-            logger.warning("jieba tokenization failed, falling back to characters: %s", exc)
+            logger.warning("jieba 分词失败，降级为按字符切分: %s", exc)
             return list(cleaned)
 
     def _rouge_scores(self, ref_tokens: list[str], hyp_tokens: list[str]) -> dict[str, float]:
-        """Calculate ROUGE-1, ROUGE-2 and ROUGE-L F1.
+        """计算 ROUGE-1、ROUGE-2 和 ROUGE-L F1。
 
-        Args:
-            ref_tokens: Tokenized reference answer.
-            hyp_tokens: Tokenized generated answer.
+        参数:
+            ref_tokens: 已分词的参考答案。
+            hyp_tokens: 已分词的生成答案。
 
-        Returns:
-            ROUGE metric dictionary.
+        返回:
+            ROUGE 指标字典。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         try:
             from rouge import Rouge
@@ -167,7 +167,7 @@ class E2EEvaluator:
                 "rouge_l": clamp_score(scores["rouge-l"]["f"]),
             }
         except Exception as exc:
-            logger.warning("rouge package calculation failed, using local fallback: %s", exc)
+            logger.warning("rouge 包计算失败，使用本地降级实现: %s", exc)
             return {
                 "rouge_1": self._rouge_n_f1(ref_tokens, hyp_tokens, 1),
                 "rouge_2": self._rouge_n_f1(ref_tokens, hyp_tokens, 2),
@@ -175,17 +175,17 @@ class E2EEvaluator:
             }
 
     def _bleu_score(self, ref_tokens: list[str], hyp_tokens: list[str]) -> float:
-        """Calculate BLEU with smoothing.
+        """使用平滑方法计算 BLEU。
 
-        Args:
-            ref_tokens: Tokenized reference answer.
-            hyp_tokens: Tokenized generated answer.
+        参数:
+            ref_tokens: 已分词的参考答案。
+            hyp_tokens: 已分词的生成答案。
 
-        Returns:
-            BLEU score.
+        返回:
+            BLEU 分数。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         if not ref_tokens or not hyp_tokens:
             return 0.0
@@ -195,7 +195,7 @@ class E2EEvaluator:
             smoothie = SmoothingFunction().method1
             return clamp_score(sentence_bleu([ref_tokens], hyp_tokens, smoothing_function=smoothie))
         except Exception as exc:
-            logger.warning("nltk BLEU calculation failed, using unigram precision fallback: %s", exc)
+            logger.warning("nltk BLEU 计算失败，使用 unigram precision 降级实现: %s", exc)
             ref_counts = Counter(ref_tokens)
             overlap = 0
             for token in hyp_tokens:
@@ -205,20 +205,20 @@ class E2EEvaluator:
             return safe_divide(overlap, len(hyp_tokens))
 
     def _bertscore_f1(self, reference: str, hypothesis: str) -> float:
-        """Calculate BERTScore F1 when enabled and available.
+        """在启用且依赖可用时计算 BERTScore F1。
 
-        Args:
-            reference: Reference answer.
-            hypothesis: Generated answer.
+        参数:
+            reference: 参考答案。
+            hypothesis: 生成答案。
 
-        Returns:
-            BERTScore F1, or 0.0 when unavailable.
+        返回:
+            BERTScore F1；不可用时返回 0.0。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         if not self.enable_bertscore:
-            logger.info("BERTScore disabled by configuration")
+            logger.info("BERTScore 已按配置禁用")
             return 0.0
         if not reference or not hypothesis:
             return 0.0
@@ -228,22 +228,22 @@ class E2EEvaluator:
             _, _, f1 = bert_score([hypothesis], [reference], lang="zh", rescale_with_baseline=True)
             return clamp_score(f1.item())
         except Exception as exc:
-            logger.warning("BERTScore calculation failed, returning 0.0: %s", exc)
+            logger.warning("BERTScore 计算失败，返回 0.0: %s", exc)
             return 0.0
 
     def _rouge_n_f1(self, ref_tokens: list[str], hyp_tokens: list[str], n: int) -> float:
-        """Calculate local ROUGE-N F1 fallback.
+        """计算本地降级版 ROUGE-N F1。
 
-        Args:
-            ref_tokens: Tokenized reference answer.
-            hyp_tokens: Tokenized generated answer.
-            n: N-gram size.
+        参数:
+            ref_tokens: 已分词的参考答案。
+            hyp_tokens: 已分词的生成答案。
+            n: N-gram 大小。
 
-        Returns:
-            ROUGE-N F1 score.
+        返回:
+            ROUGE-N F1 分数。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         ref_ngrams = self._ngrams(ref_tokens, n)
         hyp_ngrams = self._ngrams(hyp_tokens, n)
@@ -260,17 +260,17 @@ class E2EEvaluator:
         return safe_divide(2 * precision * recall, precision + recall)
 
     def _rouge_l_f1(self, ref_tokens: list[str], hyp_tokens: list[str]) -> float:
-        """Calculate local ROUGE-L F1 fallback.
+        """计算本地降级版 ROUGE-L F1。
 
-        Args:
-            ref_tokens: Tokenized reference answer.
-            hyp_tokens: Tokenized generated answer.
+        参数:
+            ref_tokens: 已分词的参考答案。
+            hyp_tokens: 已分词的生成答案。
 
-        Returns:
-            ROUGE-L F1 score.
+        返回:
+            ROUGE-L F1 分数。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         if not ref_tokens or not hyp_tokens:
             return 0.0
@@ -280,34 +280,34 @@ class E2EEvaluator:
         return safe_divide(2 * precision * recall, precision + recall)
 
     def _ngrams(self, tokens: list[str], n: int) -> list[tuple[str, ...]]:
-        """Build n-grams from token list.
+        """从分词列表构造 n-gram。
 
-        Args:
-            tokens: Token list.
-            n: N-gram size.
+        参数:
+            tokens: 分词列表。
+            n: N-gram 大小。
 
-        Returns:
-            List of n-gram tuples.
+        返回:
+            n-gram 元组列表。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         if n <= 0 or len(tokens) < n:
             return []
         return [tuple(tokens[index : index + n]) for index in range(len(tokens) - n + 1)]
 
     def _lcs_length(self, left: list[str], right: list[str]) -> int:
-        """Compute longest common subsequence length.
+        """计算最长公共子序列长度。
 
-        Args:
-            left: First token sequence.
-            right: Second token sequence.
+        参数:
+            left: 第一个分词序列。
+            right: 第二个分词序列。
 
-        Returns:
-            LCS length.
+        返回:
+            LCS 长度。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         previous = [0] * (len(right) + 1)
         for left_token in left:
@@ -321,16 +321,16 @@ class E2EEvaluator:
         return previous[-1]
 
     def _empty_summary(self) -> dict[str, Any]:
-        """Return an empty E2E summary.
+        """返回空端到端质量评测汇总。
 
-        Args:
-            None.
+        参数:
+            无。
 
-        Returns:
-            Zero-valued summary.
+        返回:
+            全零汇总结果。
 
-        Raises:
-            No exceptions are raised.
+        异常:
+            不主动抛出异常。
         """
         return {
             "rouge_1": 0.0,
@@ -341,4 +341,3 @@ class E2EEvaluator:
             "e2e_score": 0.0,
             "details": [],
         }
-

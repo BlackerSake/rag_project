@@ -1,4 +1,4 @@
-"""Evaluator implementations for RAG assessment."""
+"""RAG 评测器实现。"""
 
 from .e2e import E2EEvaluator
 from .fallback import FallbackEvaluator
@@ -11,4 +11,3 @@ __all__ = [
     "GenerationEvaluator",
     "RetrievalEvaluator",
 ]
-
