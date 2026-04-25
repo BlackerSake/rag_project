@@ -20,3 +20,6 @@ search_evaluation.log
 # Milvus 本地数据
 rdb_data/
 rdb_data_meta_kv/
+
+#codex 数据
+*.codex

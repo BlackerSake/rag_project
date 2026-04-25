@@ -1,17 +1,18 @@
-import pymysql, json
 """
-将faq_data.json文件中的数据插入到customer_service_db数据库的faq表中
+兼容入口：将 faq_data.json 同步到 MySQL。
+
+实际实现已统一收敛到项目根目录的 init.py，避免连接配置和同步逻辑重复。
 """
 
-with open('./faq_data.json', 'r', encoding='utf-8') as f:
-    data = json.load(f)
+import os
+import sys
 
-conn = pymysql.connect(host='127.0.0.1', user='root', password='133466', database='customer_service_db')
-cursor = conn.cursor()
-for item in data:
-    cursor.execute(
-        "INSERT INTO faq (domain, intent, action, question, answer) VALUES (%s, %s, %s, %s, %s)",
-        (item.get('domain', ''), item['intent_id'], item.get('action', ''), item['question'], item['answer'])
-    )
-conn.commit()
-conn.close()
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
+from init import sync_mysql_faq_only
+
+
+if __name__ == "__main__":
+    sync_mysql_faq_only()

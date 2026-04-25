@@ -9,7 +9,7 @@ from langchain_milvus import Milvus
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_core.documents import Document
 from dotenv import load_dotenv
-from pymilvus import Collection, connections, utility
+from pymilvus import Collection, MilvusClient, connections, utility
 
 # 添加根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -24,7 +24,7 @@ dashscope_model_id = os.getenv("DASHSCOPE_MODEL_ID")
 INTENT_MILVUS_ALIAS = "intent_manager_kb"
 
 class IntentManager:
-    def __init__(self, yaml_path="config/intents.yaml", collection_name="intent_index"):
+    def __init__(self, yaml_path="config/intents.yaml", collection_name=None):
         """
         初始化意图管理器
         
@@ -33,7 +33,7 @@ class IntentManager:
             collection_name: Milvus集合名称
         """
         self.yaml_path = yaml_path
-        self.collection_name = collection_name
+        self.collection_name = collection_name or os.getenv("INTENT_MILVUS_COLLECTION_NAME", "intent_index")
         self.intent_tree = {}
         self.intent_map = {}
         self.last_modified = 0
@@ -55,10 +55,11 @@ class IntentManager:
 
     def _ensure_milvus_orm_connection(self, connection_args):
         try:
-            if not connections.has_connection(INTENT_MILVUS_ALIAS):
-                connections.connect(alias=INTENT_MILVUS_ALIAS, **connection_args)
-                print(f"Milvus ORM连接已建立: {INTENT_MILVUS_ALIAS} -> {connection_args['uri']}")
-            return INTENT_MILVUS_ALIAS
+            alias = MilvusClient(**connection_args)._using
+            if not connections.has_connection(alias):
+                connections.connect(alias=alias, **connection_args)
+                print(f"Milvus ORM连接已建立: {alias} -> {connection_args['uri']}")
+            return alias
         except Exception as e:
             print(f"建立Milvus ORM连接失败，将继续使用MilvusClient: {str(e)}")
             return None
@@ -219,10 +220,12 @@ class IntentManager:
                 loop = asyncio.get_event_loop()
                 
                 # 检查并删除现有集合
+                active_alias = getattr(self.vector_store, "alias", INTENT_MILVUS_ALIAS)
+
                 def drop_collection():
                     try:
-                        if utility.has_collection(self.collection_name, using=INTENT_MILVUS_ALIAS):
-                            utility.drop_collection(self.collection_name, using=INTENT_MILVUS_ALIAS)
+                        if utility.has_collection(self.collection_name, using=active_alias):
+                            utility.drop_collection(self.collection_name, using=active_alias)
                             print(f"已删除现有集合: {self.collection_name}")
                     except Exception as e:
                         print(f"删除集合时出错: {str(e)}")
@@ -231,7 +234,7 @@ class IntentManager:
                 
                 # 添加新文档
                 await loop.run_in_executor(None, self.vector_store.add_documents, documents)
-                self._refresh_vector_store_schema_cache(alias=INTENT_MILVUS_ALIAS)
+                self._refresh_vector_store_schema_cache(alias=active_alias)
                 print(f"成功生成并存储 {len(documents)} 个意图向量")
                 
         except Exception as e:
@@ -337,6 +340,7 @@ class IntentManager:
             def connect_mysql():
                 return pymysql.connect(
                     host=mysql_config['host'],
+                    port=int(mysql_config.get('port', 3306)),
                     user=mysql_config['user'],
                     password=mysql_config['password'],
                     database=mysql_config['database'],
@@ -349,9 +353,9 @@ class IntentManager:
             try:
                 with connection.cursor() as cursor:
                     # 查询FAQ表中的所有intent_id
-                    await loop.run_in_executor(None, cursor.execute, "SELECT DISTINCT intent_id FROM faq")
+                    await loop.run_in_executor(None, cursor.execute, "SELECT DISTINCT intent FROM faq")
                     rows = await loop.run_in_executor(None, cursor.fetchall)
-                    faq_intent_ids = [row['intent_id'] for row in rows]
+                    faq_intent_ids = [row['intent'] for row in rows]
                     
                     # 获取YAML中的所有intent_id
                     yaml_intent_ids = list(self.intent_map.keys())

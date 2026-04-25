@@ -33,7 +33,23 @@ dashscope_model_id="text-embedding-v2"
 
 # 服务配置
 MILVUS_URI="http://localhost:19530"
+MILVUS_COLLECTION_NAME="customer_service"
 ES_URL="http://localhost:9200"
+ES_INDEX_NAME="customer_service"
+
+# MySQL配置
+MYSQL_HOST="127.0.0.1"
+MYSQL_PORT="3306"
+MYSQL_USER="root"
+MYSQL_PASSWORD="your-mysql-password"
+MYSQL_DATABASE="customer_service_db"
+
+# 初始化配置
+INIT_BATCH_SIZE="100"
+INIT_RETRY_ATTEMPTS="3"
+INIT_RETRY_INTERVAL_SECONDS="2"
+INIT_FORCE_VECTOR_REIMPORT="false"
+INIT_SKIP_VECTOR_IMPORT="false"
 
 # 应用配置
 APP_HOST="0.0.0.0"
@@ -75,8 +91,13 @@ docker compose down
 ```bash
 python init.py
 ```
+
+`init.py` 会统一完成 FAQ 数据校验、意图树同步、MySQL FAQ 表同步、知识库连接检查，以及 MySQL FAQ 到 Milvus/Elasticsearch 的导入。兼容脚本仍可使用：
+
 ```bash
-python from_mysql_import_faq_to_milvus.py
+python scripts/insert_faq.py
+python scripts/from_mysql_import_faq_to_milvus.py
+python scripts/check_knowledge_base.py
 ```
 ### 启动应用
 

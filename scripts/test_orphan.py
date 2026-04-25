@@ -8,6 +8,7 @@ import io
 import os
 import asyncio
 from typing import Dict, Any, List
+from dotenv import load_dotenv
 
 # 设置编码
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='ignore')
@@ -17,6 +18,7 @@ sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='ignor
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if root_path not in sys.path:
     sys.path.append(root_path)
+load_dotenv(os.path.join(root_path, ".env"))
 
 from core.intent_manager import get_intent_manager
 
@@ -65,10 +67,11 @@ async def main():
     
     # MySQL连接配置
     mysql_config = {
-        'host': '127.0.0.1',
-        'user': 'root',
-        'password': '133466',
-        'database': 'customer_agent'
+        'host': os.getenv("MYSQL_HOST", "127.0.0.1"),
+        'port': int(os.getenv("MYSQL_PORT", "3306")),
+        'user': os.getenv("MYSQL_USER", "root"),
+        'password': os.getenv("MYSQL_PASSWORD", ""),
+        'database': os.getenv("MYSQL_DATABASE", "customer_service_db")
     }
     
     # 初始化检测器

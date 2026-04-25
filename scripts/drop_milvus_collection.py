@@ -8,7 +8,7 @@ if milvus_uri.startswith("tcp://"):
     milvus_uri = f"http://{milvus_uri[len('tcp://'):]}"
 
 connections.connect("milvus_dropper", uri=milvus_uri)
-collection_name = "customer_service"
+collection_name = os.getenv("MILVUS_COLLECTION_NAME", "customer_service")
 
 if utility.has_collection(collection_name, using="milvus_dropper"):
     utility.drop_collection(collection_name, using="milvus_dropper")

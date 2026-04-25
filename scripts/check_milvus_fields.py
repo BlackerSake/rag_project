@@ -13,7 +13,7 @@ MILVUS_CHECK_ALIAS = "milvus_field_checker"
 class MilvusFieldChecker:
     def __init__(self):
         """初始化Milvus字段检查器"""
-        self.collection_name = "customer_service"
+        self.collection_name = os.getenv("MILVUS_COLLECTION_NAME", "customer_service")
         self.milvus_uri = os.getenv("MILVUS_URI", "http://localhost:19530")
         if self.milvus_uri.startswith("tcp://"):
             self.milvus_uri = f"http://{self.milvus_uri[len('tcp://'):]}"

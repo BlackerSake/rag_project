@@ -3,10 +3,8 @@ from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import CharacterTextSplitter
 from langchain_community.vectorstores import ElasticsearchStore
+import hashlib
 import os
-import uuid
-from dotenv import load_dotenv
-from pathlib import Path
 from langchain_core.documents import Document
 import time
 import json
@@ -23,209 +21,226 @@ except ImportError:
     Collection = None
     connections = None
     utility = None
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/search_evaluation.log'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
-env_path = Path(__file__).parent.parent / '.env'
-load_dotenv(dotenv_path=env_path)
 
-langchain_smith_api_key = os.getenv("LANGCHAIN_SMITH_API_KEY")
-dashscope_api_key = os.getenv("DASHSCOPE_API_KEY")
-dashscope_model_id = os.getenv("DASHSCOPE_MODEL_ID")
-MILVUS_COLLECTION_NAME = "customer_service"
-MILVUS_ORM_ALIAS = "customer_service_kb"
+logger = logging.getLogger(__name__)
+
 
 class KnowledgeBase:
     def __init__(self):
+        self._dashscope_api_key = os.getenv("DASHSCOPE_API_KEY")
+        self._dashscope_model_id = os.getenv("DASHSCOPE_MODEL_ID")
+        self._milvus_uri = self._normalize_milvus_uri(os.getenv("MILVUS_URI", "http://localhost:19530"))
+        self._milvus_collection = os.getenv("MILVUS_COLLECTION_NAME", "customer_service")
+        self._milvus_alias = "default"
+        self._es_url = os.getenv("ES_URL", "http://localhost:9200")
+        self._es_index = os.getenv("ES_INDEX_NAME", "customer_service")
+        self._milvus_connect_retries = int(os.getenv("MILVUS_CONNECT_RETRIES", "3"))
+
         self.embeddings = DashScopeEmbeddings(
-            model=dashscope_model_id,
-            dashscope_api_key=dashscope_api_key
+            model=self._dashscope_model_id,
+            dashscope_api_key=self._dashscope_api_key
         )
 
         self.vector_store = None
         self.elasticsearch_store = None
-        
+
         self._init_lock = threading.Lock()
+        self._initialized = threading.Event()
         self._thread_pool = ThreadPoolExecutor(max_workers=4)
-        
+
         self.cache = TTLCache(maxsize=1000, ttl=3600)
-        
+
         self.evaluation_data = []
         self.evaluation_file = "search_evaluation.json"
-        
+
         self._rerank_enabled = os.getenv("RERANK_ENABLED", "false").lower() == "true"
         self._rerank_top_k = int(os.getenv("RERANK_TOP_K", "6"))
 
-    def _get_milvus_connection_args(self):
-        raw_uri = os.getenv("MILVUS_URI", "http://localhost:19530")
+    @staticmethod
+    def _normalize_milvus_uri(raw_uri: str) -> str:
         milvus_uri = raw_uri.strip()
-
-        # langchain_milvus 当前底层使用 MilvusClient，要求 HTTP/HTTPS URI。
         if milvus_uri.startswith("tcp://"):
-            milvus_uri = f"http://{milvus_uri[len('tcp://'):]}"
+            return f"http://{milvus_uri[len('tcp://'):]}"
+        return milvus_uri
 
-        return {"uri": milvus_uri}
+    def _is_milvus_connection_alive(self) -> bool:
+        if connections is None or utility is None:
+            logger.warning("pymilvus 未安装，跳过 Milvus 探活")
+            return False
 
-    def _ensure_milvus_orm_connection(self, connection_args):
+        try:
+            if not connections.has_connection(self._milvus_alias):
+                return False
+            utility.list_collections(using=self._milvus_alias, timeout=3)
+            return True
+        except Exception as exc:
+            logger.warning("Milvus 连接探活失败: %s", exc)
+            return False
+
+    def _connect_pymilvus(self) -> bool:
         if connections is None:
-            return None
+            logger.warning("pymilvus 未安装，无法连接 Milvus")
+            return False
 
-        try:
-            if not connections.has_connection(MILVUS_ORM_ALIAS):
-                connections.connect(alias=MILVUS_ORM_ALIAS, **connection_args)
-                logger.info(
-                    "已建立Milvus ORM连接: %s -> %s",
-                    MILVUS_ORM_ALIAS,
-                    connection_args["uri"]
+        for attempt in range(self._milvus_connect_retries):
+            try:
+                if connections.has_connection(self._milvus_alias):
+                    if self._is_milvus_connection_alive():
+                        logger.info("Milvus alias %s 已可用，复用现有连接", self._milvus_alias)
+                        return True
+                    if self.vector_store is not None:
+                        logger.warning(
+                            "Milvus alias %s 探活失败，但 Milvus 对象仍存活，跳过重连以避免破坏业务对象",
+                            self._milvus_alias,
+                        )
+                        return False
+                logger.info("尝试连接 Milvus: %s (尝试 %s/%s)", self._milvus_uri, attempt + 1, self._milvus_connect_retries)
+                connections.connect(alias=self._milvus_alias, uri=self._milvus_uri)
+                if self._is_milvus_connection_alive():
+                    logger.info("成功连接到 Milvus")
+                    return True
+            except Exception as exc:
+                logger.error("建立 pymilvus 连接失败 (尝试 %s/%s): %s", attempt + 1, self._milvus_connect_retries, exc)
+
+            if attempt < self._milvus_connect_retries - 1:
+                time.sleep(min(2 ** attempt, 30))
+
+        logger.error("建立 pymilvus 连接次数耗尽，最终失败")
+        return False
+
+    def _init_milvus_vector_store(self) -> None:
+        max_attempts = 2
+        for attempt in range(max_attempts):
+            try:
+                logger.info("尝试初始化 Milvus 向量库 (尝试 %s/%s)", attempt + 1, max_attempts)
+                self.vector_store = Milvus(
+                    embedding_function=self.embeddings,
+                    collection_name=self._milvus_collection,
+                    connection_args={
+                        "uri": self._milvus_uri,
+                        "alias": self._milvus_alias
+                    },
+                    index_params={
+                        "metric_type": "COSINE"
+                    },
+                    auto_id=True
                 )
-            return MILVUS_ORM_ALIAS
-        except Exception as e:
-            logger.warning(f"建立Milvus ORM连接失败，将继续使用MilvusClient: {str(e)}")
-            return None
+                logger.info("成功连接到 Milvus 向量数据库")
+                return
+            except Exception as exc:
+                logger.error("连接 Milvus 向量数据库失败 (尝试 %s/%s): %s", attempt + 1, max_attempts, exc)
+                self.vector_store = None
+                if attempt < max_attempts - 1:
+                    time.sleep(min(2 ** attempt, 30))
 
-    def _refresh_vector_store_schema_cache(self, alias=None):
-        if (
-            self.vector_store is None
-            or Collection is None
-            or utility is None
-        ):
-            return
+        logger.error("连接 Milvus 向量数据库次数耗尽，最终失败")
 
-        active_alias = alias or getattr(self.vector_store, "alias", None)
-        if not active_alias:
-            return
-
+    def _init_elasticsearch_store(self) -> None:
         try:
-            self.vector_store.alias = active_alias
-            self.vector_store.fields = []
-            self.vector_store.col = None
+            self.elasticsearch_store = ElasticsearchStore(
+                es_url=self._es_url,
+                index_name=self._es_index,
+                embedding=self.embeddings
+            )
+            logger.info("成功连接到 Elasticsearch")
+            self._initialize_elasticsearch_index()
+        except Exception as exc:
+            self.elasticsearch_store = None
+            logger.error("连接 Elasticsearch 失败: %s", exc)
 
-            if utility.has_collection(MILVUS_COLLECTION_NAME, using=active_alias):
-                collection = Collection(MILVUS_COLLECTION_NAME, using=active_alias)
-                self.vector_store.col = collection
-                self.vector_store.fields = [field.name for field in collection.schema.fields]
-                logger.info(
-                    "已刷新Milvus字段缓存: %s",
-                    ", ".join(self.vector_store.fields)
-                )
-        except Exception as e:
-            logger.warning(f"刷新Milvus字段缓存失败: {str(e)}")
-    
+    def _is_connection_error(self, exc: Exception) -> bool:
+        message = str(exc).lower()
+        connection_markers = (
+            "should create connection first",
+            "connection",
+            "connect",
+            "grpc",
+            "channel",
+            "unavailable",
+            "deadline exceeded",
+            "timeout",
+            "timed out",
+            "connection refused",
+            "connection reset",
+            "broken pipe",
+        )
+        return any(marker in message for marker in connection_markers)
+
     def _rerank_with_dashscope(self, query: str, candidates: list, top_k: int) -> list:
         if not self._rerank_enabled or not candidates:
             return candidates[:top_k]
-        
+
         try:
             import dashscope
             from dashscope import TextEmbedding
-            
+
             doc_texts = [doc.page_content for doc, score in candidates]
-            
-            query_embedding = TextEmbedding.call(
-                query,
-                model=dashscope_model_id,
-                api_key=dashscope_api_key
-            ).output.embedding
-            
+
             doc_embeddings = TextEmbedding.call(
                 [query] + doc_texts,
-                model=dashscope_model_id,
-                api_key=dashscope_api_key
+                model=self._dashscope_model_id,
+                api_key=self._dashscope_api_key
             ).output.embeddings
-            
+
             query_vec = doc_embeddings[0]
             doc_vecs = doc_embeddings[1:]
-            
+
             def cosine_sim(a, b):
                 dot = sum(x * y for x, y in zip(a, b))
                 norm_a = sum(x * x for x in a) ** 0.5
                 norm_b = sum(x * x for x in b) ** 0.5
                 return dot / (norm_a * norm_b) if norm_a * norm_b > 0 else 0
-            
+
             scored = []
             for i, doc_vec in enumerate(doc_vecs):
                 score = cosine_sim(query_vec, doc_vec)
                 scored.append((candidates[i][0], score))
-            
+
             scored.sort(key=lambda x: x[1], reverse=True)
-            logger.info(f"Dashscope Rerank 完成，从 {len(candidates)} 条候选中选取 top {top_k} 条")
+            logger.info("Dashscope Rerank 完成，从 %s 条候选中选取 top %s 条", len(candidates), top_k)
             return scored[:top_k]
         except Exception as e:
-            logger.error(f"Dashscope Rerank 失败: {str(e)}，返回原始候选结果")
+            logger.error("Dashscope Rerank 失败: %s，返回原始候选结果", e)
             return candidates[:top_k]
-    
+
     def _generate_doc_id(self, doc: Document) -> str:
-        content_hash = hash(doc.page_content + json.dumps(doc.metadata, sort_keys=True))
-        return f"{uuid.uuid4().hex[:8]}_{content_hash}"
-    
+        payload = doc.page_content + json.dumps(doc.metadata, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
+
     # 移除重复的connect函数，统一使用ensure_connected函数
-    
+
     def ensure_connected(self):
-        if self.vector_store is None or self.elasticsearch_store is None:
-            with self._init_lock:
-                if self.vector_store is None:
-                    connection_args = self._get_milvus_connection_args()
-                    milvus_alias = self._ensure_milvus_orm_connection(connection_args)
-                    max_attempts = 2
-                    for attempt in range(max_attempts):
-                        try:
-                            logger.info(
-                                "尝试连接Milvus向量数据库 (尝试 %s/%s): %s",
-                                attempt + 1,
-                                max_attempts,
-                                connection_args["uri"]
-                            )
-                            self.vector_store = Milvus(
-                                embedding_function=self.embeddings,
-                                collection_name="customer_service",
-                                connection_args=connection_args,
-                                index_params={
-                                    "metric_type": "COSINE"
-                                },
-                                auto_id=True
-                            )
-                            self._refresh_vector_store_schema_cache(alias=milvus_alias)
-                            logger.info("成功连接到Milvus向量数据库")
-                            break
-                        except Exception as e:
-                                logger.error(f"连接Milvus向量数据库失败 (尝试 {attempt + 1}/{max_attempts}): {str(e)}")
-                                if attempt < max_attempts - 1:
-                                    import time
-                                    time.sleep(2)  # 等待2秒后重试
-                                else:
-                                    logger.error("连接Milvus向量数据库次数耗尽,最终失败")
-                                    self.vector_store = None
-                if self.elasticsearch_store is None:
-                    try:
-                        self.elasticsearch_store = ElasticsearchStore(
-                            es_url=os.getenv("ES_URL", "http://localhost:9200"),
-                            index_name="customer_service",
-                            embedding=self.embeddings
-                        )
-                        logger.info("成功连接到Elasticsearch")
-                        self._initialize_elasticsearch_index()
-                    except Exception as e:
-                        logger.error(f"连接Elasticsearch失败: {str(e)}")
+        if self._initialized.is_set():
+            return self.vector_store
+
+        with self._init_lock:
+            if self._initialized.is_set():
+                return self.vector_store
+
+            if self.vector_store is None:
+                if self._is_milvus_connection_alive() or self._connect_pymilvus():
+                    self._init_milvus_vector_store()
+                else:
+                    logger.error("Milvus 连接不可用，跳过向量库初始化")
+
+            if self.elasticsearch_store is None:
+                self._init_elasticsearch_store()
+
+            if self.vector_store is not None or self.elasticsearch_store is not None:
+                self._initialized.set()
 
         return self.vector_store
-    
+
     def _initialize_elasticsearch_index(self):
         try:
             es_client = self.elasticsearch_store.client
-            index_name = "customer_service"
-            
+            index_name = self._es_index
+
             if not es_client.indices.exists(index=index_name):
                 test_text = "test_dimension"
                 test_embedding = self.embeddings.embed_query(test_text)
                 vector_dim = len(test_embedding)
-                
+
                 es_client.indices.create(
                     index=index_name,
                     body={
@@ -245,15 +260,49 @@ class KnowledgeBase:
                         }
                     }
                 )
-                logger.info(f"成功创建Elasticsearch索引: {index_name}, 向量维度: {vector_dim}")
+                logger.info("成功创建 Elasticsearch 索引: %s, 向量维度: %s", index_name, vector_dim)
             else:
-                logger.info(f"Elasticsearch索引 {index_name} 已存在")
+                logger.info("Elasticsearch 索引 %s 已存在", index_name)
         except Exception as e:
-            logger.error(f"初始化Elasticsearch索引失败: {str(e)}")
-    
+            logger.error("初始化 Elasticsearch 索引失败: %s", e)
+
+    def get_milvus_collection_stats(self, collection_name: str | None = None) -> dict:
+        summary = {
+            "collection_exists": False,
+            "entity_count": 0,
+            "fields": [],
+        }
+        if Collection is None or utility is None:
+            logger.warning("pymilvus 未安装，无法检查 Milvus 集合")
+            return summary
+
+        collection_name = collection_name or self._milvus_collection
+        if not self._is_milvus_connection_alive() and not self._connect_pymilvus():
+            logger.warning("Milvus 连接不可用，无法检查集合: %s", collection_name)
+            return summary
+
+        collection = None
+        try:
+            if utility.has_collection(collection_name, using=self._milvus_alias):
+                collection = Collection(collection_name, using=self._milvus_alias)
+                collection.load()
+                summary["collection_exists"] = True
+                summary["entity_count"] = int(collection.num_entities)
+                summary["fields"] = [field.name for field in collection.schema.fields]
+        except Exception as e:
+            logger.error("检查 Milvus 集合失败: %s", e)
+        finally:
+            if collection is not None:
+                try:
+                    collection.release()
+                except Exception as e:
+                    logger.warning("释放 Milvus 集合失败: %s", e)
+
+        return summary
+
     def add_documents(self, file_paths):
         self.ensure_connected()
-        
+
         documents = []
         for file_path in file_paths:
             loader = TextLoader(file_path)
@@ -261,119 +310,82 @@ class KnowledgeBase:
             for doc in docs:
                 doc.metadata["doc_id"] = self._generate_doc_id(doc)
             documents.extend(docs)
-        
+
         text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         split_docs = text_splitter.split_documents(documents)
-        
+
         for doc in split_docs:
             if "doc_id" not in doc.metadata:
                 doc.metadata["doc_id"] = self._generate_doc_id(doc)
-        
+
         self.vector_store.add_documents(split_docs)
         self.elasticsearch_store.add_documents(split_docs)
-        
+
         self.cache.clear()
-        
+
         return len(split_docs)
-    
+
     def add_faq(self, faq_items):
         self.ensure_connected()
-        
+
         documents = []
         for ques, anws in faq_items.items():
             content = f"问题: {ques}\n答案: {anws}"
-            # 确保包含所有必需的字段
-            metadata = {
-                "type": "faq",
-                "question": ques,
-                "mysql_id": "",
-                "intent_id": "",
-                "original_question": ques,
-                "action": ""
-            }
             doc = Document(
                 page_content=content,
-                metadata=metadata
+                metadata={"type": "faq", "question": ques}
             )
             doc.metadata["doc_id"] = self._generate_doc_id(doc)
             documents.append(doc)
-        
-        try:
-            if self.vector_store:
-                self.vector_store.add_documents(documents)
-                print("成功添加FAQ到Milvus")
-        except Exception as e:
-            print(f"添加FAQ到Milvus失败: {str(e)}")
-        
-        try:
-            if self.elasticsearch_store:
-                self.elasticsearch_store.add_documents(documents)
-                print("成功添加FAQ到Elasticsearch")
-        except Exception as e:
-            print(f"添加FAQ到Elasticsearch失败: {str(e)}")
-        
+
+        self.vector_store.add_documents(documents)
+        self.elasticsearch_store.add_documents(documents)
+
         self.cache.clear()
-        
+
         return len(documents)
-    
+
     def _get_cache_key(self, query: str, k: int, filter_expr) -> str:
         key_data = {"query": query, "k": k, "filter_expr": filter_expr}
-        return hash(json.dumps(key_data, sort_keys=True))
+        payload = json.dumps(key_data, sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
-    def _milvus_client_search(self, query: str, k: int, filter_expr=None):
-        if not self.vector_store:
-            return []
-
-        search_params = self.vector_store.search_params
-        if isinstance(search_params, list):
-            search_params = search_params[0] if search_params else None
-
-        embedding = self.embeddings.embed_query(query)
-        raw_results = self.vector_store.client.search(
-            collection_name=self.vector_store.collection_name,
-            data=[embedding],
-            anns_field=self.vector_store._vector_field,
-            search_params=search_params,
-            limit=k,
-            filter=filter_expr or "",
-            output_fields=["*"],
-            timeout=self.vector_store.timeout
-        )
-
-        parsed_results = []
-        text_field = getattr(self.vector_store, "_text_field", "text")
-        vector_field = getattr(self.vector_store, "_vector_field", "vector")
-        primary_field = getattr(self.vector_store, "_primary_field", "pk")
-
-        for result in raw_results[0]:
-            entity = result.get("entity", {})
-            page_content = entity.get(text_field, "")
-            metadata = {
-                key: value
-                for key, value in entity.items()
-                if key not in {text_field, vector_field, primary_field}
-            }
-            parsed_results.append(
-                (Document(page_content=page_content, metadata=metadata), result.get("distance", 0.0))
-            )
-
-        return parsed_results
-    
     def _vector_search(self, query: str, k: int, filter_expr=None):
         vector_results = []
         vector_time = 0
         try:
             if self.vector_store:
                 start = time.time()
-                vector_results = self._milvus_client_search(query, k, filter_expr)
+                vector_search_kwargs = {"k": k}
+                if filter_expr:
+                    vector_search_kwargs["expr"] = filter_expr
+                vector_results = self.vector_store.similarity_search_with_score(query, **vector_search_kwargs)
                 vector_time = time.time() - start
-                logger.info(f"向量检索成功，返回 {len(vector_results)} 条结果")
+                logger.info("向量检索成功，返回 %s 条结果", len(vector_results))
             else:
                 logger.warning("向量存储未初始化，跳过向量检索")
         except Exception as e:
-            logger.error(f"向量检索失败: {str(e)}")
+            if self._is_connection_error(e):
+                logger.warning("向量检索出现连接异常，尝试重连后重试一次: %s", e)
+                self.vector_store = None
+                self._initialized.clear()
+                self.ensure_connected()
+                if self.vector_store:
+                    try:
+                        start = time.time()
+                        vector_search_kwargs = {"k": k}
+                        if filter_expr:
+                            vector_search_kwargs["expr"] = filter_expr
+                        vector_results = self.vector_store.similarity_search_with_score(query, **vector_search_kwargs)
+                        vector_time = time.time() - start
+                        logger.info("向量检索重试成功，返回 %s 条结果", len(vector_results))
+                        return vector_results, vector_time
+                    except Exception as retry_error:
+                        logger.error("向量检索重试失败: %s", retry_error)
+            else:
+                logger.error("向量检索失败: %s", e)
         return vector_results, vector_time
-    
+
     def _bm25_search(self, query: str, k: int):
         bm25_results = []
         bm25_time = 0
@@ -382,27 +394,27 @@ class KnowledgeBase:
                 start = time.time()
                 bm25_results = self.elasticsearch_store.similarity_search_with_score(query, k=k)
                 bm25_time = time.time() - start
-                logger.info(f"BM25检索成功，返回 {len(bm25_results)} 条结果")
+                logger.info("BM25检索成功，返回 %s 条结果", len(bm25_results))
             else:
                 logger.warning("Elasticsearch存储未初始化，跳过BM25检索")
         except Exception as e:
-            logger.error(f"BM25检索失败: {str(e)}")
+            logger.error("BM25检索失败: %s", e)
         return bm25_results, bm25_time
-    
+
     def _local_fallback_search(self, query: str, k: int) -> list:
         logger.warning("使用本地兜底搜索（difflib）")
         all_docs = []
         try:
             if self.vector_store:
-                all_docs = [doc for doc, _score in self._milvus_client_search(query, 100)]
+                all_docs = self.vector_store.similarity_search(query, k=100)
             if not all_docs and self.elasticsearch_store:
                 all_docs = self.elasticsearch_store.similarity_search(query, k=100)
         except Exception as e:
-            logger.error(f"获取兜底文档失败: {str(e)}")
-        
+            logger.error("获取兜底文档失败: %s", e)
+
         if not all_docs:
             return []
-        
+
         query_lower = query.lower()
         scored = []
         for doc in all_docs:
@@ -412,27 +424,27 @@ class KnowledgeBase:
             else:
                 score = 0.0
             scored.append((doc, score))
-        
+
         scored.sort(key=lambda x: x[1], reverse=True)
         return [(doc, (score, "fallback")) for doc, score in scored[:k]]
-    
+
     def _merge_results_with_rrf(self, vector_results: list, bm25_results: list, k: int):
         doc_rank_map = {}
-        
+
         for rank, (doc, score) in enumerate(vector_results, 1):
             doc_id = doc.metadata.get("doc_id", self._generate_doc_id(doc))
             if doc_id not in doc_rank_map:
                 doc_rank_map[doc_id] = {"doc": doc, "ranks": [], "vector_score": score, "bm25_score": 0}
             doc_rank_map[doc_id]["ranks"].append(rank)
             doc_rank_map[doc_id]["vector_score"] = score
-        
+
         for rank, (doc, score) in enumerate(bm25_results, 1):
             doc_id = doc.metadata.get("doc_id", self._generate_doc_id(doc))
             if doc_id not in doc_rank_map:
                 doc_rank_map[doc_id] = {"doc": doc, "ranks": [], "vector_score": 0, "bm25_score": score}
             doc_rank_map[doc_id]["ranks"].append(rank)
             doc_rank_map[doc_id]["bm25_score"] = score
-        
+
         rrf_k = 60
         rrf_results = []
         for doc_id, data in doc_rank_map.items():
@@ -444,17 +456,17 @@ class KnowledgeBase:
                 "combined_score": combined_score,
                 "source": "hybrid"
             })
-        
+
         rrf_results.sort(key=lambda x: x["rrf_score"], reverse=True)
         return rrf_results[:k]
-    
+
     def search(self, query, k=3, filter_expr=None, evaluate=False, relevant_docs=None):
         self.ensure_connected()
-        
+
         cache_key = self._get_cache_key(query, k, filter_expr)
         start_time = time.time()
         from_cache = False
-        
+
         if cache_key in self.cache:
             final_results = self.cache[cache_key]
             from_cache = True
@@ -463,21 +475,21 @@ class KnowledgeBase:
             if evaluate and relevant_docs:
                 self._async_evaluate_search(query, final_results, relevant_docs, response_time, from_cache)
             return final_results
-        
+
         with ThreadPoolExecutor(max_workers=2) as executor:
             vector_future = executor.submit(self._vector_search, query, k * 2, filter_expr)
             bm25_future = executor.submit(self._bm25_search, query, k * 2)
-            
+
             vector_results, vector_time = vector_future.result()
             bm25_results, bm25_time = bm25_future.result()
-        
+
         rrf_results = self._merge_results_with_rrf(vector_results, bm25_results, k * 2)
-        
+
         if rrf_results:
             candidates = [(r["doc"], r["combined_score"]) for r in rrf_results]
             reranked_candidates = self._rerank_with_dashscope(query, candidates, k * 2)
             final_results = reranked_candidates[:k]
-            logger.info(f"混合检索 + Rerank 成功，返回 {len(final_results)} 条结果")
+            logger.info("混合检索 + Rerank 成功，返回 %s 条结果", len(final_results))
         elif vector_results:
             candidates = vector_results[:k * 2]
             reranked_candidates = self._rerank_with_dashscope(query, candidates, k * 2)
@@ -495,44 +507,44 @@ class KnowledgeBase:
                 final_results = fallback_results
             else:
                 final_results = []
-        
+
         merge_time = time.time() - start_time - vector_time - bm25_time
         response_time = time.time() - start_time
-        
+
         self._async_log_search(
             query, len(final_results), response_time, from_cache,
             vector_time, bm25_time, merge_time
         )
-        
+
         if evaluate and relevant_docs:
             self._async_evaluate_search(query, final_results, relevant_docs, response_time, from_cache)
         else:
             self._async_log_basic_evaluation(query, final_results, response_time, from_cache)
-        
+
         self.cache[cache_key] = final_results
-        
+
         return final_results
-    
+
     def evaluate_search(self, query, results, relevant_docs, response_time, from_cache):
         """评估搜索结果"""
         # 计算命中率（至少有一个相关结果）
         hit_rate = 0
         relevant_count = 0
-        
+
         # 计算精确率和召回率
         retrieved_docs = [doc.page_content for doc, score in results]
-        
+
         # 统计相关结果数量
         for doc_content in retrieved_docs:
             if any(relevant in doc_content for relevant in relevant_docs):
                 relevant_count += 1
-        
+
         # 计算指标
         precision = relevant_count / len(retrieved_docs) if retrieved_docs else 0
         recall = relevant_count / len(relevant_docs) if relevant_docs else 0
         f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
         hit_rate = 1 if relevant_count > 0 else 0
-        
+
         # 构建评估数据
         evaluation_entry = {
             "timestamp": datetime.now().isoformat(),
@@ -552,11 +564,11 @@ class KnowledgeBase:
                 "from_cache": from_cache
             }
         }
-        
+
         # 保存评估数据
         self.evaluation_data.append(evaluation_entry)
         self.save_evaluation_data()
-        
+
         eval_json = json.dumps({
             'query': query,
             'precision': precision,
@@ -565,16 +577,16 @@ class KnowledgeBase:
             'hit_rate': hit_rate,
             'response_time': response_time
         })
-        logger.info(f"Evaluation: {eval_json}")
-    
+        logger.info("Evaluation: %s", eval_json)
+
     def save_evaluation_data(self):
         """保存评估数据到文件"""
         try:
             with open(self.evaluation_file, 'w', encoding='utf-8') as f:
                 json.dump(self.evaluation_data, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            logger.error(f"保存评估数据失败: {str(e)}")
-    
+            logger.error("保存评估数据失败: %s", e)
+
     def load_evaluation_data(self):
         """从文件加载评估数据"""
         try:
@@ -582,20 +594,20 @@ class KnowledgeBase:
                 with open(self.evaluation_file, 'r', encoding='utf-8') as f:
                     self.evaluation_data = json.load(f)
         except Exception as e:
-            logger.error(f"加载评估数据失败: {str(e)}")
-    
+            logger.error("加载评估数据失败: %s", e)
+
     def get_evaluation_summary(self):
         """获取评估摘要"""
         if not self.evaluation_data:
             return {"message": "暂无评估数据"}
-        
+
         # 计算平均指标
         total_precision = 0
         total_recall = 0
         total_f1 = 0
         total_hit_rate = 0
         total_response_time = 0
-        
+
         for entry in self.evaluation_data:
             metrics = entry.get("metrics", {})
             total_precision += metrics.get("precision", 0)
@@ -603,9 +615,9 @@ class KnowledgeBase:
             total_f1 += metrics.get("f1_score", 0)
             total_hit_rate += metrics.get("hit_rate", 0)
             total_response_time += metrics.get("response_time", 0)
-        
+
         count = len(self.evaluation_data)
-        
+
         return {
             "total_queries": count,
             "average_precision": total_precision / count if count > 0 else 0,
@@ -614,7 +626,7 @@ class KnowledgeBase:
             "average_hit_rate": total_hit_rate / count if count > 0 else 0,
             "average_response_time": total_response_time / count if count > 0 else 0
         }
-    
+
     def _async_log_search(self, query, result_count, response_time, from_cache, vector_time=0, bm25_time=0, merge_time=0):
         """异步记录搜索日志"""
         def log_task():
@@ -630,12 +642,12 @@ class KnowledgeBase:
                     "merge_time": merge_time
                 }
                 # 记录到日志文件
-                logger.info(f"Search: {json.dumps(log_entry)}")
+                logger.info("Search: %s", json.dumps(log_entry, ensure_ascii=False))
             except Exception as e:
-                logger.error(f"异步记录搜索日志失败: {str(e)}")
-        
+                logger.error("异步记录搜索日志失败: %s", e)
+
         self._thread_pool.submit(log_task)
-    
+
     def _async_evaluate_search(self, query, results, relevant_docs, response_time, from_cache):
         """异步评估搜索结果"""
         def evaluate_task():
@@ -643,21 +655,21 @@ class KnowledgeBase:
                 # 计算命中率（至少有一个相关结果）
                 hit_rate = 0
                 relevant_count = 0
-                
+
                 # 计算精确率和召回率
                 retrieved_docs = [doc.page_content for doc, score in results]
-                
+
                 # 统计相关结果数量
                 for doc_content in retrieved_docs:
                     if any(relevant in doc_content for relevant in relevant_docs):
                         relevant_count += 1
-                
+
                 # 计算指标
                 precision = relevant_count / len(retrieved_docs) if retrieved_docs else 0
                 recall = relevant_count / len(relevant_docs) if relevant_docs else 0
                 f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
                 hit_rate = 1 if relevant_count > 0 else 0
-                
+
                 # 构建评估数据
                 evaluation_entry = {
                     "timestamp": datetime.now().isoformat(),
@@ -677,9 +689,9 @@ class KnowledgeBase:
                         "from_cache": from_cache
                     }
                 }
-                
+
                 self.save_evaluation_data()
-                
+
                 eval_json = json.dumps({
                     'query': query,
                     'precision': precision,
@@ -688,13 +700,13 @@ class KnowledgeBase:
                     'hit_rate': hit_rate,
                     'response_time': response_time
                 })
-                logger.info(f"Evaluation: {eval_json}")
+                logger.info("Evaluation: %s", eval_json)
             except Exception as e:
-                logger.error(f"异步评估搜索结果失败: {str(e)}")
-        
+                logger.error("异步评估搜索结果失败: %s", e)
+
         # 提交到线程池执行
         self._thread_pool.submit(evaluate_task)
-    
+
     def _async_log_basic_evaluation(self, query, results, response_time, from_cache):
         """异步记录基本评估数据（没有相关文档时）"""
         def log_task():
@@ -713,17 +725,15 @@ class KnowledgeBase:
                         "result_count": len(results)
                     }
                 }
-                
+
                 basic_eval_json = json.dumps({
                     'query': query,
                     'response_time': response_time,
                     'from_cache': from_cache,
                     'result_count': len(results)
                 })
-                logger.info(f"Basic Evaluation: {basic_eval_json}")
+                logger.info("Basic Evaluation: %s", basic_eval_json)
             except Exception as e:
-                logger.error(f"异步记录基本评估数据失败: {str(e)}")
-        
-        self._thread_pool.submit(log_task)
+                logger.error("异步记录基本评估数据失败: %s", e)
 
-        
+        self._thread_pool.submit(log_task)

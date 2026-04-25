@@ -77,7 +77,8 @@ services:
     image: mysql:8.0
     container_name: customer_service_agent_mysql
     environment:
-      MYSQL_ROOT_PASSWORD: 133466
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-133466}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-customer_service_db}
     ports:
       - "3306:3306"
     volumes:
@@ -89,5 +90,4 @@ networks:
     driver: bridge
 volumes:
   mysql_data:
-
 
