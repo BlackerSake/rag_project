@@ -116,6 +116,7 @@ LLM 接收原始问题，输出一个 JSON 列表。
 1. rag的检测系统:
 
 ### Minds 25/4
+### Done
 前置脚本重构:
 将[mysql的faq导入milvus](../scripts/from_mysql_import_faq_to_milvus.py)与[mulvus的连接](../scripts/insert_faq.py)全部重置到init.py中,  
 同时包括[知识库检查](../scripts/check_knowledge_base.py)与[faq导入mysql](../scripts/insert_faq.py)(如果检测到mysql的faq表没有值,有值也需要检测)  
@@ -125,7 +126,7 @@ LLM 接收原始问题，输出一个 JSON 列表。
 - MySQL 连接信息  
 - Milvus/Elasticsearch 连接信息  
 
-全程保证代码功能逻辑实现，理论与健壮性，工程测试闭环，代码注释与规范性四个方面的完整性  
+全程保证代码功能逻辑实现，理论与健壮性，工程测试闭环，代码注释与日志四个方面的完整性  
 分阶段进行:
 1. 基础整合 - 将所有功能整合到 init.py
 2. 健壮性改进 - 添加错误处理、重试机制
