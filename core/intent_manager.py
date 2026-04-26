@@ -64,6 +64,28 @@ class IntentManager:
             print(f"建立Milvus ORM连接失败，将继续使用MilvusClient: {str(e)}")
             return None
 
+    def _create_vector_store(self, connection_args):
+        return Milvus(
+            embedding_function=self.embeddings,
+            collection_name=self.collection_name,
+            connection_args=connection_args,
+            index_params={
+                "metric_type": "COSINE"
+            },
+            auto_id=True
+        )
+
+    def _drop_intent_collection(self, active_alias):
+        if not active_alias:
+            return
+
+        try:
+            if utility.has_collection(self.collection_name, using=active_alias):
+                utility.drop_collection(self.collection_name, using=active_alias)
+                print(f"已删除现有集合: {self.collection_name}")
+        except Exception as e:
+            print(f"删除集合时出错: {str(e)}")
+
     def _refresh_vector_store_schema_cache(self, alias=None):
         if self.vector_store is None:
             return
@@ -142,16 +164,8 @@ class IntentManager:
             loop = asyncio.get_event_loop()
             self.vector_store = await loop.run_in_executor(
                 None,
-                lambda: Milvus(
-                    embedding_function=self.embeddings,
-                    collection_name=self.collection_name,
-                    connection_args=connection_args,
-                    index_params={
-                        "metric_type": "COSINE"
-                    },
-                    auto_id=True,
-                    drop_old=True
-                )
+                self._create_vector_store,
+                connection_args
             )
             self._refresh_vector_store_schema_cache(alias=milvus_alias)
             print("Milvus向量存储初始化成功")
@@ -218,19 +232,17 @@ class IntentManager:
             if documents and self.vector_store:
                 # 清空现有数据并重新添加
                 loop = asyncio.get_event_loop()
-                
-                # 检查并删除现有集合
+                connection_args = self._get_milvus_connection_args()
                 active_alias = getattr(self.vector_store, "alias", INTENT_MILVUS_ALIAS)
 
-                def drop_collection():
-                    try:
-                        if utility.has_collection(self.collection_name, using=active_alias):
-                            utility.drop_collection(self.collection_name, using=active_alias)
-                            print(f"已删除现有集合: {self.collection_name}")
-                    except Exception as e:
-                        print(f"删除集合时出错: {str(e)}")
-                
-                await loop.run_in_executor(None, drop_collection)
+                # langchain_milvus 的 drop_old 路径在部分版本中会触发 AsyncMilvusClient
+                # 未 await 的 RuntimeWarning，因此这里使用 pymilvus 同步删除后重建。
+                await loop.run_in_executor(None, self._drop_intent_collection, active_alias)
+                self.vector_store = await loop.run_in_executor(
+                    None,
+                    self._create_vector_store,
+                    connection_args
+                )
                 
                 # 添加新文档
                 await loop.run_in_executor(None, self.vector_store.add_documents, documents)

@@ -1,8 +1,0 @@
-pytest
-pytest-asyncio
-jieba
-rouge
-nltk
-bert-score
-torch
-

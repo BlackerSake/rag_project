@@ -13,8 +13,6 @@ class SearchEvaluator:
     def __init__(self):
         """初始化搜索评估器"""
         self.knowledge_base = KnowledgeBase()
-        # 加载已有的评估数据
-        self.knowledge_base.load_evaluation_data()
     
     def evaluate_sample_queries(self):
         """评估样例查询"""
@@ -49,7 +47,6 @@ class SearchEvaluator:
                 results = self.knowledge_base.search(
                     test_case['query'],
                     k=5,
-                    evaluate=True,
                     relevant_docs=test_case['relevant_docs']
                 )
                 
@@ -65,7 +62,7 @@ class SearchEvaluator:
     
     def print_evaluation_summary(self):
         """打印评估摘要"""
-        summary = self.knowledge_base.get_evaluation_summary()
+        summary = self.knowledge_base.get_retrieval_evaluation_summary()
         print("\n=== 评估摘要 ===")
         for key, value in summary.items():
             if isinstance(value, float):

@@ -2,7 +2,10 @@ from langchain_milvus import Milvus
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import CharacterTextSplitter
-from langchain_community.vectorstores import ElasticsearchStore
+try:
+    from langchain_elasticsearch import ElasticsearchStore
+except ImportError:
+    from langchain_community.vectorstores import ElasticsearchStore
 import hashlib
 import os
 from langchain_core.documents import Document
@@ -13,6 +16,7 @@ from datetime import datetime
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from cachetools import TTLCache
+from data.retrieval_evaluation import RetrievalEvaluationConfig, RetrievalEvaluator
 
 # 尝试导入pymilvus
 try:
@@ -50,8 +54,11 @@ class KnowledgeBase:
 
         self.cache = TTLCache(maxsize=1000, ttl=3600)
 
-        self.evaluation_data = []
-        self.evaluation_file = "search_evaluation.json"
+        self._retrieval_eval_enabled = os.getenv("RETRIEVAL_EVAL_ENABLED", "true").lower() == "true"
+        self._retrieval_evaluator = RetrievalEvaluator(
+            RetrievalEvaluationConfig(top_k=int(os.getenv("RETRIEVAL_EVAL_TOP_K", "5")))
+        )
+        self.retrieval_evaluation_events = []
 
         self._rerank_enabled = os.getenv("RERANK_ENABLED", "false").lower() == "true"
         self._rerank_top_k = int(os.getenv("RERANK_TOP_K", "6"))
@@ -460,7 +467,16 @@ class KnowledgeBase:
         rrf_results.sort(key=lambda x: x["rrf_score"], reverse=True)
         return rrf_results[:k]
 
-    def search(self, query, k=3, filter_expr=None, evaluate=False, relevant_docs=None):
+    def search(
+        self,
+        query,
+        k=3,
+        filter_expr=None,
+        evaluate=False,
+        relevant_docs=None,
+        expected_intent_id=None,
+        evaluation_context=None,
+    ):
         self.ensure_connected()
 
         cache_key = self._get_cache_key(query, k, filter_expr)
@@ -472,8 +488,16 @@ class KnowledgeBase:
             from_cache = True
             response_time = time.time() - start_time
             self._async_log_search(query, len(final_results), response_time, from_cache)
-            if evaluate and relevant_docs:
-                self._async_evaluate_search(query, final_results, relevant_docs, response_time, from_cache)
+            self._async_evaluate_retrieval(
+                query,
+                final_results,
+                k,
+                relevant_docs,
+                expected_intent_id,
+                response_time,
+                from_cache,
+                evaluation_context,
+            )
             return final_results
 
         with ThreadPoolExecutor(max_workers=2) as executor:
@@ -516,116 +540,20 @@ class KnowledgeBase:
             vector_time, bm25_time, merge_time
         )
 
-        if evaluate and relevant_docs:
-            self._async_evaluate_search(query, final_results, relevant_docs, response_time, from_cache)
-        else:
-            self._async_log_basic_evaluation(query, final_results, response_time, from_cache)
+        self._async_evaluate_retrieval(
+            query,
+            final_results,
+            k,
+            relevant_docs,
+            expected_intent_id,
+            response_time,
+            from_cache,
+            evaluation_context,
+        )
 
         self.cache[cache_key] = final_results
 
         return final_results
-
-    def evaluate_search(self, query, results, relevant_docs, response_time, from_cache):
-        """评估搜索结果"""
-        # 计算命中率（至少有一个相关结果）
-        hit_rate = 0
-        relevant_count = 0
-
-        # 计算精确率和召回率
-        retrieved_docs = [doc.page_content for doc, score in results]
-
-        # 统计相关结果数量
-        for doc_content in retrieved_docs:
-            if any(relevant in doc_content for relevant in relevant_docs):
-                relevant_count += 1
-
-        # 计算指标
-        precision = relevant_count / len(retrieved_docs) if retrieved_docs else 0
-        recall = relevant_count / len(relevant_docs) if relevant_docs else 0
-        f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
-        hit_rate = 1 if relevant_count > 0 else 0
-
-        # 构建评估数据
-        evaluation_entry = {
-            "timestamp": datetime.now().isoformat(),
-            "query": query,
-            "results": [{
-                "content": doc.page_content[:100] + "..." if len(doc.page_content) > 100 else doc.page_content,
-                "score": score,
-                "is_relevant": any(relevant in doc.page_content for relevant in relevant_docs)
-            } for doc, score in results],
-            "relevant_docs": relevant_docs,
-            "metrics": {
-                "precision": precision,
-                "recall": recall,
-                "f1_score": f1_score,
-                "hit_rate": hit_rate,
-                "response_time": response_time,
-                "from_cache": from_cache
-            }
-        }
-
-        # 保存评估数据
-        self.evaluation_data.append(evaluation_entry)
-        self.save_evaluation_data()
-
-        eval_json = json.dumps({
-            'query': query,
-            'precision': precision,
-            'recall': recall,
-            'f1_score': f1_score,
-            'hit_rate': hit_rate,
-            'response_time': response_time
-        })
-        logger.info("Evaluation: %s", eval_json)
-
-    def save_evaluation_data(self):
-        """保存评估数据到文件"""
-        try:
-            with open(self.evaluation_file, 'w', encoding='utf-8') as f:
-                json.dump(self.evaluation_data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            logger.error("保存评估数据失败: %s", e)
-
-    def load_evaluation_data(self):
-        """从文件加载评估数据"""
-        try:
-            if os.path.exists(self.evaluation_file):
-                with open(self.evaluation_file, 'r', encoding='utf-8') as f:
-                    self.evaluation_data = json.load(f)
-        except Exception as e:
-            logger.error("加载评估数据失败: %s", e)
-
-    def get_evaluation_summary(self):
-        """获取评估摘要"""
-        if not self.evaluation_data:
-            return {"message": "暂无评估数据"}
-
-        # 计算平均指标
-        total_precision = 0
-        total_recall = 0
-        total_f1 = 0
-        total_hit_rate = 0
-        total_response_time = 0
-
-        for entry in self.evaluation_data:
-            metrics = entry.get("metrics", {})
-            total_precision += metrics.get("precision", 0)
-            total_recall += metrics.get("recall", 0)
-            total_f1 += metrics.get("f1_score", 0)
-            total_hit_rate += metrics.get("hit_rate", 0)
-            total_response_time += metrics.get("response_time", 0)
-
-        count = len(self.evaluation_data)
-
-        return {
-            "total_queries": count,
-            "average_precision": total_precision / count if count > 0 else 0,
-            "average_recall": total_recall / count if count > 0 else 0,
-            "average_f1_score": total_f1 / count if count > 0 else 0,
-            "average_hit_rate": total_hit_rate / count if count > 0 else 0,
-            "average_response_time": total_response_time / count if count > 0 else 0
-        }
 
     def _async_log_search(self, query, result_count, response_time, from_cache, vector_time=0, bm25_time=0, merge_time=0):
         """异步记录搜索日志"""
@@ -648,92 +576,64 @@ class KnowledgeBase:
 
         self._thread_pool.submit(log_task)
 
-    def _async_evaluate_search(self, query, results, relevant_docs, response_time, from_cache):
-        """异步评估搜索结果"""
+    def _async_evaluate_retrieval(
+        self,
+        query,
+        results,
+        k,
+        relevant_docs,
+        expected_intent_id,
+        response_time,
+        from_cache,
+        evaluation_context,
+    ):
+        """异步记录主系统检索评测事件。"""
+        if not self._retrieval_eval_enabled:
+            return
+
         def evaluate_task():
             try:
-                # 计算命中率（至少有一个相关结果）
-                hit_rate = 0
-                relevant_count = 0
-
-                # 计算精确率和召回率
-                retrieved_docs = [doc.page_content for doc, score in results]
-
-                # 统计相关结果数量
-                for doc_content in retrieved_docs:
-                    if any(relevant in doc_content for relevant in relevant_docs):
-                        relevant_count += 1
-
-                # 计算指标
-                precision = relevant_count / len(retrieved_docs) if retrieved_docs else 0
-                recall = relevant_count / len(relevant_docs) if relevant_docs else 0
-                f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
-                hit_rate = 1 if relevant_count > 0 else 0
-
-                # 构建评估数据
-                evaluation_entry = {
-                    "timestamp": datetime.now().isoformat(),
-                    "query": query,
-                    "results": [{
-                        "content": doc.page_content[:100] + "..." if len(doc.page_content) > 100 else doc.page_content,
-                        "score": score,
-                        "is_relevant": any(relevant in doc.page_content for relevant in relevant_docs)
-                    } for doc, score in results],
-                    "relevant_docs": relevant_docs,
-                    "metrics": {
-                        "precision": precision,
-                        "recall": recall,
-                        "f1_score": f1_score,
-                        "hit_rate": hit_rate,
-                        "response_time": response_time,
-                        "from_cache": from_cache
-                    }
-                }
-
-                self.save_evaluation_data()
-
-                eval_json = json.dumps({
-                    'query': query,
-                    'precision': precision,
-                    'recall': recall,
-                    'f1_score': f1_score,
-                    'hit_rate': hit_rate,
-                    'response_time': response_time
-                })
-                logger.info("Evaluation: %s", eval_json)
+                event = self._retrieval_evaluator.evaluate_results(
+                    query,
+                    results,
+                    k=k,
+                    relevant_docs=relevant_docs,
+                    expected_intent_id=expected_intent_id,
+                    response_time=response_time,
+                    from_cache=from_cache,
+                    context=evaluation_context,
+                )
+                self.retrieval_evaluation_events.append(event)
+                self._retrieval_evaluator.log_event(event)
             except Exception as e:
-                logger.error("异步评估搜索结果失败: %s", e)
+                logger.error("异步检索评测失败: %s", e)
 
-        # 提交到线程池执行
         self._thread_pool.submit(evaluate_task)
 
-    def _async_log_basic_evaluation(self, query, results, response_time, from_cache):
-        """异步记录基本评估数据（没有相关文档时）"""
-        def log_task():
-            try:
-                # 构建基本评估数据
-                evaluation_entry = {
-                    "timestamp": datetime.now().isoformat(),
-                    "query": query,
-                    "results": [{
-                        "content": doc.page_content[:100] + "..." if len(doc.page_content) > 100 else doc.page_content,
-                        "score": score
-                    } for doc, score in results],
-                    "metrics": {
-                        "response_time": response_time,
-                        "from_cache": from_cache,
-                        "result_count": len(results)
-                    }
-                }
+    def get_retrieval_evaluation_summary(self):
+        """返回当前进程内已记录检索评测事件的均值摘要。"""
+        if not self.retrieval_evaluation_events:
+            return {"message": "暂无检索评测数据"}
 
-                basic_eval_json = json.dumps({
-                    'query': query,
-                    'response_time': response_time,
-                    'from_cache': from_cache,
-                    'result_count': len(results)
-                })
-                logger.info("Basic Evaluation: %s", basic_eval_json)
-            except Exception as e:
-                logger.error("异步记录基本评估数据失败: %s", e)
+        metric_names = ("recall_at_k", "precision_at_k", "mrr", "ndcg_at_k")
+        summary = {
+            "total_queries": len(self.retrieval_evaluation_events),
+            "labeled_queries": 0,
+            "intent_labeled_queries": 0,
+            "unlabeled_queries": 0,
+        }
+        metric_values = {name: [] for name in metric_names}
 
-        self._thread_pool.submit(log_task)
+        for event in self.retrieval_evaluation_events:
+            status = event.get("metric_status", "unlabeled")
+            summary[f"{status}_queries"] = summary.get(f"{status}_queries", 0) + 1
+            metrics = event.get("metrics", {})
+            for name in metric_names:
+                value = metrics.get(name)
+                if value is not None:
+                    metric_values[name].append(value)
+
+        for name, values in metric_values.items():
+            summary[f"average_{name}"] = sum(values) / len(values) if values else None
+
+        return summary
