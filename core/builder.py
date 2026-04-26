@@ -1,7 +1,7 @@
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 from .state import State
-from .nodes import retrieve_knowledge, retrieve_knowledge_multi, direct_answer, clarify_question, fallback_response, summarize_conversation, increment_rounds, chat_response, decompose_query, integrate_sub_questions, task_dispatcher
+from .nodes import retrieve_knowledge, retrieve_knowledge_multi, direct_answer, clarify_question, fallback_response, summarize_conversation, increment_rounds, chat_response, decompose_query, task_dispatcher
 from .edges import check_conversation_rounds
 
 # 创建状态图
@@ -9,7 +9,6 @@ graph = StateGraph(State)
 
 # 添加节点
 graph.add_node("decompose_query", decompose_query)  # 查询拆解节点（入口）
-graph.add_node("integrate_sub_questions", integrate_sub_questions)  # 整合子问题节点
 graph.add_node("task_dispatcher", task_dispatcher)  # 任务分发节点（分拣中心）
 graph.add_node("retrieve_knowledge", retrieve_knowledge)  # 单意图检索
 graph.add_node("retrieve_knowledge_multi", retrieve_knowledge_multi)  # 多意图检索节点
@@ -27,9 +26,8 @@ graph.add_node("check_rounds", check_conversation_rounds)
 # 新的入口：查询拆解
 graph.set_entry_point("decompose_query")
 
-# 查询拆解后，进入整合子问题节点，再进入任务分发节点
-graph.add_edge("decompose_query", "integrate_sub_questions")
-graph.add_edge("integrate_sub_questions", "task_dispatcher")
+# 查询拆解后，直接进入任务分发节点
+graph.add_edge("decompose_query", "task_dispatcher")
 
 # 任务分发后，根据是否需要查询知识库决定下一步
 # 检查是否有需要查询知识库的子问题

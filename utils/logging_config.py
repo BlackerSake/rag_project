@@ -1,27 +1,34 @@
 import logging
 import os
+from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
-# 创建日志目录
-log_dir = "logs"
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+LOG_DIR = PROJECT_ROOT / "logs"
+DEFAULT_LOG_FILE = LOG_DIR / "eval.log"
 
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        RotatingFileHandler(
-            os.path.join(log_dir, 'app.log'),
-            maxBytes=10*1024*1024,  # 10MB
-            backupCount=5,
-            encoding='utf-8'  # 设置UTF-8编码
-        ),
-        logging.StreamHandler()
-    ]
-)
 
-# 创建日志记录器
-def get_logger(name):
+def configure_logging(level: str | int | None = None, force: bool = False) -> Path:
+    """配置项目日志，将日志统一写入 logs/eval.log。"""
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(
+        level=level or os.getenv("EVAL_LOG_LEVEL", "INFO"),
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            RotatingFileHandler(
+                DEFAULT_LOG_FILE,
+                maxBytes=10 * 1024 * 1024,  # 10MB
+                backupCount=5,
+                encoding="utf-8",
+            )
+        ],
+        force=force,
+    )
+    return DEFAULT_LOG_FILE
+
+
+configure_logging()
+
+
+def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)

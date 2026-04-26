@@ -26,7 +26,7 @@
   ],
   "fallback_cases": [
     {
-      "question": "明天北京天气怎么样",
+      "question": "我买的商品运送太慢，现在立刻马上退款.",
       "expected_behavior": "reject",
       "retrieved_context": []
     }

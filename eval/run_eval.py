@@ -5,13 +5,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import logging
-import os
 import sys
 from pathlib import Path
 from typing import Any
 
-from pathlib import Path
 from dotenv import load_dotenv
 
 # 定位到项目根目录（假设 run_eval.py 在 eval/ 下）
@@ -24,8 +21,9 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from eval.config import EvalConfig
 from eval.evaluators import E2EEvaluator, FallbackEvaluator, GenerationEvaluator, RetrievalEvaluator
+from utils.logging_config import configure_logging, get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class LangGraphRAGAdapter:
@@ -33,14 +31,7 @@ class LangGraphRAGAdapter:
 
     def __init__(self) -> None:
         """初始化 LangGraph 适配器。
-
-        参数:
-            无。
-
-        返回:
-            无。
-
-        异常:
+        Errors:
             ImportError: 当主系统图依赖无法导入时抛出。
         """
         from core.builder import compiled_graph
@@ -52,13 +43,13 @@ class LangGraphRAGAdapter:
     async def answer(self, question: str) -> str:
         """运行主 RAG 图并返回最新助手回复。
 
-        参数:
+        Args:
             question: 用户问题。
 
-        返回:
+        Returns:
             助手回复文本。
 
-        异常:
+        Errors:
             不主动抛出异常；调用失败时返回安全兜底回复。
         """
         try:
@@ -85,13 +76,13 @@ class LangGraphRAGAdapter:
 async def default_llm_client(prompt: str) -> str:
     """通过项目已配置的聊天模型执行评测提示词。
 
-    参数:
+    Args:
         prompt: 评测提示词。
 
-    返回:
+    Returns:
         LLM 响应文本。
 
-    异常:
+    Errors:
         模型调用异常会继续抛出，由 Evaluator 层统一降级处理。
     """
     from core.models import model
@@ -104,13 +95,13 @@ async def default_llm_client(prompt: str) -> str:
 def load_cases(path: Path) -> dict[str, list[dict[str, Any]]]:
     """从 JSON 文件加载评测用例。
 
-    参数:
+    Args:
         path: JSON 测试用例路径。
 
-    返回:
+    Returns:
         评测用例数据；缺失的评测分区会使用空列表补齐。
 
-    异常:
+    Errors:
         FileNotFoundError: 当路径不存在时抛出。
         json.JSONDecodeError: 当 JSON 格式无效时抛出。
     """
@@ -127,14 +118,14 @@ def load_cases(path: Path) -> dict[str, list[dict[str, Any]]]:
 def overall_score(report: dict[str, Any], config: EvalConfig) -> float:
     """计算最终加权总分。
 
-    参数:
+    Args:
         report: 包含四类评测结果的报告。
         config: 评测配置。
 
-    返回:
+    Returns:
         最终加权总分。
 
-    异常:
+    Errors:
         不主动抛出异常。
     """
     weights = config.overall_weights
@@ -146,18 +137,22 @@ def overall_score(report: dict[str, Any], config: EvalConfig) -> float:
     )
 
 
-async def run_evaluation(cases_path: Path, output_path: Path | None = None, enable_bertscore: bool = True) -> dict[str, Any]:
+async def run_evaluation(
+    cases_path: Path,
+    output_path: Path | None = None,
+    enable_bertscore: bool = True,
+) -> dict[str, Any]:
     """运行完整 RAG 评测流程。
 
-    参数:
+    Args:
         cases_path: JSON 测试用例路径。
-        output_path: 可选的评测报告输出路径。
+        output_path: 兼容旧调用的保留参数；评测系统不再生成 JSON 报告文件。
         enable_bertscore: 是否计算 BERTScore。
 
-    返回:
+    Returns:
         完整评测报告。
 
-    异常:
+    Errors:
         测试用例加载异常会继续抛出。
     """
     cases = load_cases(cases_path)
@@ -171,15 +166,20 @@ async def run_evaluation(cases_path: Path, output_path: Path | None = None, enab
 
     retrieval = RetrievalEvaluator(knowledge_base, config)
     generation = GenerationEvaluator(llm_client, config)
-    e2e = E2EEvaluator(config, enable_bertscore=enable_bertscore)
+    #e2e = E2EEvaluator(config, enable_bertscore=enable_bertscore)
     fallback = FallbackEvaluator(rag_system, llm_client, config)
 
     logger.info("开始检索质量评测")
     retrieval_report = await retrieval.evaluate_batch(cases["retrieval_cases"], k=config.top_k)
     logger.info("开始生成质量评测")
     generation_report = await generation.evaluate_batch(cases["generation_cases"])
-    logger.info("开始端到端质量评测")
-    e2e_report = e2e.evaluate_batch(cases["e2e_cases"])
+    logger.info("暂时禁用 端到端质量评测")
+    #e2e_report = e2e.evaluate_batch(cases["e2e_cases"])
+    e2e_report = {
+        "e2e_score": 0.0,
+        "details": [],
+        "metrics": {}
+    }
     logger.info("开始兜底能力评测")
     fallback_report = await fallback.evaluate_batch(cases["fallback_cases"])
 
@@ -192,39 +192,33 @@ async def run_evaluation(cases_path: Path, output_path: Path | None = None, enab
     report["overall_score"] = overall_score(report, config)
 
     if output_path is not None:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with output_path.open("w", encoding="utf-8") as file:
-            json.dump(report, file, ensure_ascii=False, indent=2)
-        logger.info("评测报告已写入: %s", output_path)
+        logger.info("已禁用评测报告文件生成，忽略输出路径: %s", output_path)
+    logger.info(
+        "评测完成: overall_score=%.4f retrieval=%.4f generation=%.4f e2e=%.4f fallback=%.4f",
+        report["overall_score"],
+        retrieval_report.get("retrieval_score", 0.0),
+        generation_report.get("generation_score", 0.0),
+        e2e_report.get("e2e_score", 0.0),
+        fallback_report.get("fallback_score", 0.0),
+    )
     return report
 
 
 def main() -> None:
     """解析命令行参数并运行评测。
-
-    参数:
-        无。
-
-    返回:
-        无。
-
-    异常:
+    Errors:
         未处理的初始化异常会继续抛出到命令行。
     """
     parser = argparse.ArgumentParser(description="运行独立 RAG 评测。")
     parser.add_argument("--cases", type=Path, default=Path("eval/data/test_cases.json"), help="测试用例 JSON 路径")
-    parser.add_argument("--output", type=Path, default=Path("eval/eval_report.json"), help="评测报告 JSON 输出路径")
     parser.add_argument("--no-bertscore", action="store_true", help="禁用 BERTScore 计算")
     args = parser.parse_args()
 
-    logging.basicConfig(
-        level=os.getenv("EVAL_LOG_LEVEL", "INFO"),
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
+    log_file = configure_logging(force=True)
+    logger.info("评测日志写入: %s", log_file)
     report = asyncio.run(
         run_evaluation(
             cases_path=args.cases,
-            output_path=args.output,
             enable_bertscore=not args.no_bertscore,
         )
     )

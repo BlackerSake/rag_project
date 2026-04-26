@@ -129,7 +129,7 @@ def _resolve_original_sub_question(
             if candidate is not None:
                 parts.append(candidate[0])
         if parts:
-            return "，".join(parts)
+            return "/".join(parts)
 
     sub_question = str(item.get("sub_question", "")).strip()
     if sub_question in original_questions:
@@ -141,11 +141,11 @@ def _resolve_original_sub_question(
         parts = []
         for question in ordered_questions[start_index:]:
             parts.append(question)
-            joined_originals.add("，".join(parts))
+            joined_originals.add("/".join(parts))
     if sub_question in joined_originals:
         return sub_question
 
-    logger.warning("LLM返回非原句子问题，已忽略: %s", sub_question)
+    logger.warning("LLM返回非原句子问题,已忽略: %s", sub_question)
     return ""
 
 
@@ -233,7 +233,7 @@ def split_user_input(text: str) -> list[str]:
     核心逻辑：切句 → 过滤补充句 → 合并残句
     """
     # 1. 按标点切句
-    pattern = r'[。？！\?!；;,.]+'
+    pattern = r'[。？！?!；;,.]+'
     parts = [p.strip() for p in re.split(pattern, text) if p.strip()]
 
     # 没切出多句，直接返回原始输入
@@ -285,7 +285,7 @@ async def decompose_query(state: State) -> State:
             sub_question_intents.append((sent, intent_id, score))
             logger.info(f"  子问题{i}: {sent} -> 意图: {intent_id} (相似度: {score:.4f})")
 
-        # 第三步：由LLM基于候选子问题和意图目录裁决合并子问题
+        # 第三步：由LLM基于候选子问题和意图目录裁决最终子问题
         try:
             final_intents = await _judge_final_sub_questions(user_query, sub_question_intents, manager)
             logger.info("LLM查询拆解裁决完成: %s", final_intents)
@@ -293,15 +293,15 @@ async def decompose_query(state: State) -> State:
             logger.error("LLM查询拆解裁决失败，使用规则兜底: %s", llm_error)
             final_intents = _fallback_select_final_intents(sub_question_intents)
 
-        merged_questions = [item[0] for item in final_intents]
+        sub_questions = [item[0] for item in final_intents]
 
-        is_complex = len(merged_questions) > 1
-        logger.info(f"LLM意图合并结果: {len(merged_questions)} 个合并子问题")
-        for i, sq in enumerate(merged_questions, 1):
-            logger.info(f"  合并子问题{i}: {sq}")
+        is_complex = len(sub_questions) > 1
+        logger.info(f"查询拆解结果: {len(sub_questions)} 个最终子问题")
+        for i, sq in enumerate(sub_questions, 1):
+            logger.info(f"  最终子问题{i}: {sq}")
 
         return {
-            "sub_questions": merged_questions,
+            "sub_questions": sub_questions,
             "is_complex_query": is_complex,
             "multi_intent_results": final_intents,
             "decompose_skipped": False
@@ -315,48 +315,6 @@ async def decompose_query(state: State) -> State:
             "multi_intent_results": [],
             "decompose_skipped": True
         }
-
-
-async def integrate_sub_questions(state: State) -> State:
-    """整合子问题节点：将LLM合并后的子问题按中文逗号切回最终子问题。"""
-    merged_intent_results = state.get("multi_intent_results", [])
-    if not merged_intent_results:
-        sub_questions = state.get("sub_questions", [])
-        logger.warning("整合子问题未收到LLM合并结果，透传现有子问题: %s", sub_questions)
-        return {
-            "sub_questions": sub_questions,
-            "is_complex_query": len(sub_questions) > 1,
-            "multi_intent_results": merged_intent_results,
-        }
-
-    final_intent_results = []
-
-    logger.info(f"整合子问题: 处理 {len(merged_intent_results)} 个LLM合并结果")
-    for merged_index, (sub_q, intent_id, score) in enumerate(merged_intent_results, 1):
-        parts = [part.strip() for part in str(sub_q).split("，") if part.strip()]
-        if not parts:
-            continue
-
-        logger.info(f"  合并子问题{merged_index}: {sub_q} -> 拆分为 {len(parts)} 个最终子问题")
-        for part in parts:
-            final_intent_results.append((part, intent_id, score))
-
-    if not final_intent_results:
-        logger.warning("整合子问题无有效结果，保留原始拆解结果")
-        final_intent_results = merged_intent_results
-
-    sub_questions = [item[0] for item in final_intent_results]
-    is_complex = len(sub_questions) > 1
-
-    logger.info(f"整合子问题完成: {len(sub_questions)} 个最终子问题")
-    for i, (sub_q, intent_id, score) in enumerate(final_intent_results, 1):
-        logger.info(f"  最终子问题{i}: {sub_q} -> 意图: {intent_id} (相似度: {score:.4f})")
-
-    return {
-        "sub_questions": sub_questions,
-        "is_complex_query": is_complex,
-        "multi_intent_results": final_intent_results,
-    }
 
 
 async def retrieve_knowledge_multi(state: State) -> State:
