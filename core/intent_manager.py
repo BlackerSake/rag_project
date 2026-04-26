@@ -24,11 +24,13 @@ dashscope_model_id = os.getenv("DASHSCOPE_MODEL_ID")
 INTENT_MILVUS_ALIAS = "intent_manager_kb"
 
 class IntentManager:
+    """意图管理器类，负责意图匹配和管理"""
+    
     def __init__(self, yaml_path="config/intents.yaml", collection_name=None):
         """
         初始化意图管理器
         
-        Args:
+        参数:
             yaml_path: 意图树YAML文件路径
             collection_name: Milvus集合名称
         """
@@ -45,6 +47,7 @@ class IntentManager:
         self._initialized = False
 
     def _get_milvus_connection_args(self):
+        """获取Milvus连接参数"""
         raw_uri = os.getenv("MILVUS_URI", "http://localhost:19530")
         milvus_uri = raw_uri.strip()
 
@@ -54,6 +57,7 @@ class IntentManager:
         return {"uri": milvus_uri}
 
     def _ensure_milvus_orm_connection(self, connection_args):
+        """确保Milvus ORM连接"""
         try:
             alias = MilvusClient(**connection_args)._using
             if not connections.has_connection(alias):
@@ -65,6 +69,7 @@ class IntentManager:
             return None
 
     def _create_vector_store(self, connection_args):
+        """创建向量存储"""
         return Milvus(
             embedding_function=self.embeddings,
             collection_name=self.collection_name,
@@ -76,6 +81,7 @@ class IntentManager:
         )
 
     def _drop_intent_collection(self, active_alias):
+        """删除意图集合"""
         if not active_alias:
             return
 
@@ -87,6 +93,7 @@ class IntentManager:
             print(f"删除集合时出错: {str(e)}")
 
     def _refresh_vector_store_schema_cache(self, alias=None):
+        """刷新向量存储模式缓存"""
         if self.vector_store is None:
             return
 
@@ -108,6 +115,7 @@ class IntentManager:
             print(f"刷新意图Milvus字段缓存失败: {str(e)}")
 
     def _client_search_intents(self, query, k=3):
+        """客户端搜索意图"""
         if not self.vector_store:
             return []
 
@@ -276,11 +284,11 @@ class IntentManager:
         """
         异步匹配用户查询的意图
         
-        Args:
+        参数:
             query: 用户查询文本
             k: 返回前k个匹配结果
             
-        Returns:
+        返回:
             匹配度最高的intent_id和相似度分数
         """
         try:
@@ -316,10 +324,10 @@ class IntentManager:
         """
         获取意图信息
         
-        Args:
+        参数:
             intent_id: 意图ID
             
-        Returns:
+        返回:
             意图信息字典
         """
         return self.intent_map.get(intent_id, None)
@@ -328,7 +336,7 @@ class IntentManager:
         """
         获取所有意图
         
-        Returns:
+        返回:
             意图映射字典
         """
         return self.intent_map
@@ -337,10 +345,10 @@ class IntentManager:
         """
         异步检测孤儿节点：查询FAQ表中的所有intent_id是否都存在于intents.yaml中
         
-        Args:
+        参数:
             mysql_config: MySQL连接配置
             
-        Returns:
+        返回:
             dict: 包含孤儿节点信息的字典
         """
         try:
@@ -404,7 +412,7 @@ async def get_intent_manager():
     """
     异步获取IntentManager实例
     
-    Returns:
+    返回:
         IntentManager实例
     """
     global intent_manager

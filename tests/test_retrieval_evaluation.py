@@ -10,6 +10,7 @@ from data.retrieval_evaluation import RetrievalEvaluationConfig, RetrievalEvalua
 
 
 def test_labeled_retrieval_evaluation_calculates_core_metrics():
+    """测试有标签的检索评估能计算核心指标"""
     evaluator = RetrievalEvaluator(RetrievalEvaluationConfig(top_k=3))
     results = [
         (Document(page_content="问题: 退货流程", metadata={"doc_id": "doc_a"}), 0.91),
@@ -28,6 +29,7 @@ def test_labeled_retrieval_evaluation_calculates_core_metrics():
 
 
 def test_intent_labeled_evaluation_does_not_fake_recall():
+    """测试意图标签评估不会伪造召回率"""
     evaluator = RetrievalEvaluator(RetrievalEvaluationConfig(top_k=2))
     results = [
         (Document(page_content="问题: 配送时间", metadata={"intent_id": "L1", "mysql_id": "1"}), 0.9),
@@ -44,6 +46,7 @@ def test_intent_labeled_evaluation_does_not_fake_recall():
 
 
 def test_unlabeled_evaluation_records_event_without_metrics():
+    """测试无标签评估会记录事件但无指标"""
     evaluator = RetrievalEvaluator()
     event = evaluator.evaluate_results("你好", [], k=5)
 

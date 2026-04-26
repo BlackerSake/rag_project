@@ -12,7 +12,6 @@ milvus_data/
 # 日志文件
 logs/
 *.log
-search_evaluation.log
 
 # VSCode 配置（如果不需要团队共享）
 .vscode/
@@ -21,7 +20,11 @@ search_evaluation.log
 rdb_data/
 rdb_data_meta_kv/
 
-
 #github Copilot 数据
 .github/
+
+#codex 数据
 .codex
+
+#markdown
+markdown/

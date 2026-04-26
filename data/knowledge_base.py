@@ -30,7 +30,10 @@ logger = logging.getLogger(__name__)
 
 
 class KnowledgeBase:
+    """知识库类，提供向量检索和混合检索功能"""
+    
     def __init__(self):
+        """初始化知识库"""
         self._dashscope_api_key = os.getenv("DASHSCOPE_API_KEY")
         self._dashscope_model_id = os.getenv("DASHSCOPE_MODEL_ID")
         self._milvus_uri = self._normalize_milvus_uri(os.getenv("MILVUS_URI", "http://localhost:19530"))
@@ -65,12 +68,14 @@ class KnowledgeBase:
 
     @staticmethod
     def _normalize_milvus_uri(raw_uri: str) -> str:
+        """标准化Milvus URI"""
         milvus_uri = raw_uri.strip()
         if milvus_uri.startswith("tcp://"):
             return f"http://{milvus_uri[len('tcp://'):]}"
         return milvus_uri
 
     def _is_milvus_connection_alive(self) -> bool:
+        """检查Milvus连接是否活跃"""
         if connections is None or utility is None:
             logger.warning("pymilvus 未安装，跳过 Milvus 探活")
             return False
@@ -85,6 +90,7 @@ class KnowledgeBase:
             return False
 
     def _connect_pymilvus(self) -> bool:
+        """连接到Milvus"""
         if connections is None:
             logger.warning("pymilvus 未安装，无法连接 Milvus")
             return False
@@ -116,6 +122,7 @@ class KnowledgeBase:
         return False
 
     def _init_milvus_vector_store(self) -> None:
+        """初始化Milvus向量存储"""
         max_attempts = 2
         for attempt in range(max_attempts):
             try:
@@ -143,6 +150,7 @@ class KnowledgeBase:
         logger.error("连接 Milvus 向量数据库次数耗尽，最终失败")
 
     def _init_elasticsearch_store(self) -> None:
+        """初始化Elasticsearch存储"""
         try:
             self.elasticsearch_store = ElasticsearchStore(
                 es_url=self._es_url,
@@ -156,6 +164,7 @@ class KnowledgeBase:
             logger.error("连接 Elasticsearch 失败: %s", exc)
 
     def _is_connection_error(self, exc: Exception) -> bool:
+        """判断是否为连接错误"""
         message = str(exc).lower()
         connection_markers = (
             "should create connection first",
@@ -174,6 +183,7 @@ class KnowledgeBase:
         return any(marker in message for marker in connection_markers)
 
     def _rerank_with_dashscope(self, query: str, candidates: list, top_k: int) -> list:
+        """使用Dashscope进行重排序"""
         if not self._rerank_enabled or not candidates:
             return candidates[:top_k]
 
@@ -211,12 +221,14 @@ class KnowledgeBase:
             return candidates[:top_k]
 
     def _generate_doc_id(self, doc: Document) -> str:
+        """生成文档ID"""
         payload = doc.page_content + json.dumps(doc.metadata, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32]
 
     # 移除重复的connect函数，统一使用ensure_connected函数
 
     def ensure_connected(self):
+        """确保连接到存储服务"""
         if self._initialized.is_set():
             return self.vector_store
 
@@ -239,6 +251,7 @@ class KnowledgeBase:
         return self.vector_store
 
     def _initialize_elasticsearch_index(self):
+        """初始化Elasticsearch索引"""
         try:
             es_client = self.elasticsearch_store.client
             index_name = self._es_index
@@ -274,6 +287,7 @@ class KnowledgeBase:
             logger.error("初始化 Elasticsearch 索引失败: %s", e)
 
     def get_milvus_collection_stats(self, collection_name: str | None = None) -> dict:
+        """获取Milvus集合统计信息"""
         summary = {
             "collection_exists": False,
             "entity_count": 0,
@@ -308,6 +322,7 @@ class KnowledgeBase:
         return summary
 
     def add_documents(self, file_paths):
+        """添加文档到知识库"""
         self.ensure_connected()
 
         documents = []
@@ -333,6 +348,7 @@ class KnowledgeBase:
         return len(split_docs)
 
     def add_faq(self, faq_items):
+        """添加FAQ到知识库"""
         self.ensure_connected()
 
         documents = []
@@ -353,11 +369,13 @@ class KnowledgeBase:
         return len(documents)
 
     def _get_cache_key(self, query: str, k: int, filter_expr) -> str:
+        """生成缓存键"""
         key_data = {"query": query, "k": k, "filter_expr": filter_expr}
         payload = json.dumps(key_data, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     def _vector_search(self, query: str, k: int, filter_expr=None):
+        """执行向量检索"""
         vector_results = []
         vector_time = 0
         try:
@@ -394,6 +412,7 @@ class KnowledgeBase:
         return vector_results, vector_time
 
     def _bm25_search(self, query: str, k: int):
+        """执行BM25检索"""
         bm25_results = []
         bm25_time = 0
         try:
@@ -409,6 +428,7 @@ class KnowledgeBase:
         return bm25_results, bm25_time
 
     def _local_fallback_search(self, query: str, k: int) -> list:
+        """本地兜底搜索"""
         logger.warning("使用本地兜底搜索（difflib）")
         all_docs = []
         try:
@@ -436,6 +456,7 @@ class KnowledgeBase:
         return [(doc, (score, "fallback")) for doc, score in scored[:k]]
 
     def _merge_results_with_rrf(self, vector_results: list, bm25_results: list, k: int):
+        """使用RRF算法合并检索结果"""
         doc_rank_map = {}
 
         for rank, (doc, score) in enumerate(vector_results, 1):
@@ -477,6 +498,20 @@ class KnowledgeBase:
         expected_intent_id=None,
         evaluation_context=None,
     ):
+        """执行搜索
+        
+        参数:
+            query: 查询文本
+            k: 返回结果数量
+            filter_expr: 过滤表达式
+            evaluate: 是否评估
+            relevant_docs: 相关文档
+            expected_intent_id: 预期意图ID
+            evaluation_context: 评估上下文
+            
+        返回:
+            搜索结果列表
+        """
         self.ensure_connected()
 
         cache_key = self._get_cache_key(query, k, filter_expr)
