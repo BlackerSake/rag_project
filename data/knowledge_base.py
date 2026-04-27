@@ -229,7 +229,7 @@ class KnowledgeBase:
 
     def ensure_connected(self):
         """确保连接到存储服务"""
-        if self._initialized.is_set():
+        if self.vector_store is not None and self.elasticsearch_store is not None:
             return self.vector_store
 
         with self._init_lock:
@@ -245,7 +245,7 @@ class KnowledgeBase:
             if self.elasticsearch_store is None:
                 self._init_elasticsearch_store()
 
-            if self.vector_store is not None or self.elasticsearch_store is not None:
+            if self.vector_store is not None and self.elasticsearch_store is not None:
                 self._initialized.set()
 
         return self.vector_store
@@ -394,6 +394,13 @@ class KnowledgeBase:
                 logger.warning("向量检索出现连接异常，尝试重连后重试一次: %s", e)
                 self.vector_store = None
                 self._initialized.clear()
+                # 強制斷開並重建底層 pymilvus 連接
+                try:
+                    if connections and connections.has_connection(self._milvus_alias):
+                        connections.disconnect(self._milvus_alias)
+                except Exception as e:
+                    logger.error("断开 Milvus 连接时出错: %s", e)
+                    pass
                 self.ensure_connected()
                 if self.vector_store:
                     try:
@@ -455,7 +462,7 @@ class KnowledgeBase:
         scored.sort(key=lambda x: x[1], reverse=True)
         return [(doc, (score, "fallback")) for doc, score in scored[:k]]
 
-    def _merge_results_with_rrf(self, vector_results: list, bm25_results: list, k: int):
+    def _hybrid_search(self, vector_results: list, bm25_results: list, k: int):
         """使用RRF算法合并检索结果"""
         doc_rank_map = {}
 
@@ -542,7 +549,7 @@ class KnowledgeBase:
             vector_results, vector_time = vector_future.result()
             bm25_results, bm25_time = bm25_future.result()
 
-        rrf_results = self._merge_results_with_rrf(vector_results, bm25_results, k * 2)
+        rrf_results = self._hybrid_search(vector_results, bm25_results, k * 2)
 
         if rrf_results:
             candidates = [(r["doc"], r["combined_score"]) for r in rrf_results]
@@ -672,3 +679,90 @@ class KnowledgeBase:
             summary[f"average_{name}"] = sum(values) / len(values) if values else None
 
         return summary
+        # 可以加在 KnowledgeBase 类里，作为辅助方法
+    def _get_milvus_collection(self):
+        """获取pymilvus原生Collection对象，可作为备用方案。"""
+        if Collection is None or connections is None:
+            return None
+        try:
+            if not connections.has_connection(self._milvus_alias):
+                logger.warning("原生连接不存在，尝试建立...")
+                connections.connect(alias=self._milvus_alias, uri=self._milvus_uri)
+            col = Collection(self._milvus_collection, using=self._milvus_alias)
+            col.load()
+            return col
+        except Exception as e:
+            logger.error("获取原生Milvus集合失败: %s", e)
+            return None
+
+    def _vector_search(self, query: str, k: int, filter_expr=None):
+        """执行向量检索（带终极兜底）"""
+        vector_results = []
+        vector_time = 0
+
+        # ---- 1. 主路径：使用 langchain Milvus 对象 (self.vector_store) ----
+        if self.vector_store:
+            try:
+                start = time.time()
+                vector_search_kwargs = {"k": k}
+                if filter_expr:
+                    vector_search_kwargs["expr"] = filter_expr
+                vector_results = self.vector_store.similarity_search_with_score(query, **vector_search_kwargs)
+                vector_time = time.time() - start if 'start' in locals() else 0
+                logger.info("向量检索成功（langchain），返回 %s 条结果", len(vector_results))
+                return vector_results, vector_time
+            except Exception as e:
+                logger.warning("langchain向量检索失败，尝试使用 pymilvus 原生对象进行兜底: %s", e)
+        
+        # ---- 2. 兜底路径：使用 pymilvus 原生 Collection 对象 ----
+        if not vector_results:
+            try:
+                col = self._get_milvus_collection()
+                if col:
+                    start_fallback = time.time()
+                    
+                    query_vector = self.embeddings.embed_query(query)
+                    search_params = {"metric_type": "COSINE", "params": {"nprobe": 10}}
+                    results = col.search(
+                        data=[query_vector],
+                        anns_field="vector",
+                        param=search_params,
+                        limit=k,
+                        expr=filter_expr,
+                        output_fields=["text", "mysql_id", "intent_id", "original_question", "action", "type", "doc_id"]
+                    )
+
+                    # 将原生结果转换为 LangChain Document 格式
+                    from langchain_core.documents import Document
+                    converted_results = []
+                    if results and len(results) > 0:
+                        for hit in results[0]:
+                            # 重建metadata
+                            metadata = {
+                                "mysql_id": hit.entity.get("mysql_id"),
+                                "intent_id": hit.entity.get("intent_id"),
+                                "original_question": hit.entity.get("original_question"),
+                                "action": hit.entity.get("action"),
+                                "type": hit.entity.get("type"),
+                                "doc_id": hit.entity.get("doc_id")
+                            }
+                            # 过滤掉值为None的字段，保持干净
+                            metadata = {k: v for k, v in metadata.items() if v is not None}
+                            
+                            doc = Document(
+                                page_content=hit.entity.get("text", ""),
+                                metadata=metadata
+                            )
+                            converted_results.append((doc, hit.score))
+                    
+                    vector_time = time.time() - start_fallback if 'start_fallback' in locals() else 0
+                    logger.info("向量检索成功（pymilvus 兜底），返回 %s 条结果", len(converted_results))
+                    return converted_results, vector_time
+            except Exception as e:
+                logger.error("pymilvus 兜底检索失败: %s", e)
+
+        # ---- 3. 所有尝试都失败 ----
+        if not vector_results:
+            logger.warning("所有向量检索路径均失败，跳过向量检索")
+        
+        return vector_results, vector_time

@@ -1,0 +1,1024 @@
+[
+    {
+        "query": "能退吗",
+        "intent": "A1",
+        "expected_doc_ids": [
+            "faq_refund_001",
+            "faq_refund_002",
+            "faq_refund_008"
+        ],
+        "reference_answer": "基本条件：1. 商品完好，不影响二次销售；2. 7天内申请（特殊商品除外）；3. 保留原包装和配件。\n特殊商品：贴身物品、定制商品不支持无理由退货。"
+    },
+    {
+        "query": "退款要多久",
+        "intent": "A1",
+        "expected_doc_ids": [
+            "faq_refund_009",
+            "faq_refund_015"
+        ],
+        "reference_answer": "退款时效：商家确认收货后24小时内到账。\n到账方式：原路返回支付账户。\n查询方式：APP内“我的订单”查看退款状态。"
+    },
+    {
+        "query": "退货运费谁付",
+        "intent": "A1",
+        "expected_doc_ids": [
+            "faq_refund_007",
+            "faq_refund_005"
+        ],
+        "reference_answer": "运费规则：质量问题导致的退货，运费由商家承担；7天无理由退货，运费由买家承担。\n操作方式：质量问题需上传凭证，系统审核通过后运费会自动报销。"
+    },
+    {
+        "query": "我买的鞋子尺码不合适，可以退吗？",
+        "intent": "A1",
+        "expected_doc_ids": [
+            "faq_refund_001",
+            "faq_refund_003"
+        ],
+        "reference_answer": "适用条件：商品未穿着、未水洗，吊牌完整。\n操作步骤：1. 打开APP进入订单详情；2. 点击“申请售后”；3. 选择“退货退款”，原因选择“尺码不合适”。\n退货时效：7天内申请。\n退款到账：商家确认收货后24小时内。"
+    },
+    {
+        "query": "买了件衣服不喜欢，想退货怎么操作？",
+        "intent": "A1",
+        "expected_doc_ids": [
+            "faq_refund_006",
+            "faq_refund_008"
+        ],
+        "reference_answer": "操作流程：1. 打开APP找到对应订单；2. 点击“申请售后”；3. 选择“退货退款”并填写原因；4. 等待审核通过后寄回商品。\n注意事项：确保商品完好，不影响二次销售。"
+    },
+    {
+        "query": "退货申请提交了，什么时候能收到退款？",
+        "intent": "A1",
+        "expected_doc_ids": [
+            "faq_refund_009",
+            "faq_refund_012"
+        ],
+        "reference_answer": "退款时效：商家确认收货后24小时内到账。\n到账方式：原路返回支付账户。\n查询方式：APP内“我的订单”查看退款状态。"
+    },
+    {
+        "query": "商品收到时包装已经破损，怎么退？",
+        "intent": "A1",
+        "expected_doc_ids": [
+            "faq_refund_001",
+            "faq_refund_003"
+        ],
+        "reference_answer": "适用条件：签收24小时内发现外观破损。\n操作步骤：1. 保留原包装并拍照；2. APP内“我的订单”点击“申请售后”；3. 选择“退货退款”，原因为“收到破损”。\n取件方式：系统自动安排上门取件。\n退款时效：快递员取走商品后立即退款。"
+    },
+    {
+        "query": "已经穿过一次的衣服还能退吗？",
+        "intent": "A1",
+        "expected_doc_ids": [
+            "faq_refund_014",
+            "faq_refund_008"
+        ],
+        "reference_answer": "退货规则：已穿着的商品不支持无理由退货。\n特殊情况：质量问题除外，需提供相关凭证。"
+    },
+    {
+        "query": "退款会退回到哪里？",
+        "intent": "A1",
+        "expected_doc_ids": [
+            "faq_refund_015",
+            "faq_refund_009"
+        ],
+        "reference_answer": "退款方式：原路返回至支付账户。\n到账时间：商家确认收货后24小时内。\n查询：可在支付平台查看退款记录。"
+    },
+    {
+        "query": "我买的手机收到后发现屏幕有划痕，但我已经开封使用了两天，商家说这属于人为损坏不给退，我该怎么办？",
+        "intent": "A1",
+        "expected_doc_ids": [
+            "faq_refund_001",
+            "faq_refund_003",
+            "faq_refund_008"
+        ],
+        "reference_answer": "操作步骤：1. 拍摄商品质量问题照片；2. APP内申请售后；3. 选择“退货退款”，上传问题照片。\n审核时间：24小时内完成审核。\n退货方式：支持上门取件或自行寄回。\n退款：商家确认收货后立即退款。"
+    },
+    {
+        "query": "七天无理由退货和质量问题退货有什么区别？运费分别谁出？",
+        "intent": "A1",
+        "expected_doc_ids": [
+            "faq_refund_005",
+            "faq_refund_007",
+            "faq_refund_008"
+        ],
+        "reference_answer": "规则说明：7天无理由退货，运费由买家承担。\n操作步骤：1. 申请售后选择“7天无理由”；2. 选择寄回方式；3. 自行支付运费寄回。\n特殊情况：商品质量问题导致的退货，运费由商家承担。"
+    },
+    {
+        "query": "我把商品寄回去了但物流显示已签收，商家迟迟不确认收货，超过48小时了还没退款怎么办？",
+        "intent": "A1",
+        "expected_doc_ids": [
+            "faq_refund_012",
+            "faq_refund_009"
+        ],
+        "reference_answer": "处理流程：1. 商家需要24小时内确认收货；2. 确认收货后系统自动退款。\n查询方式：APP内查看售后进度。\n超时处理：超过48小时未处理可联系客服。"
+    },
+    {
+        "query": "我在平台购买了一双运动鞋，签收后第三天发现鞋底出现了开胶现象，正常穿着并未进行剧烈运动，属于明显质量问题，请问我应该通过哪些步骤申请退货，退货运费是否需要我自行承担，预计多久能收到退款？",
+        "intent": "A1",
+        "expected_doc_ids": [
+            "faq_refund_003",
+            "faq_refund_007",
+            "faq_refund_009"
+        ],
+        "reference_answer": "操作步骤：1. 拍摄商品质量问题照片；2. APP内申请售后；3. 选择“退货退款”，上传问题照片。\n审核时间：24小时内完成审核。\n退货方式：支持上门取件或自行寄回。\n退款：商家确认收货后立即退款。"
+    },
+    {
+        "query": "请问如果我购买的商品与商品详情页描述严重不符，比如宣传是纯棉材质实际收到的是涤纶，这种情况下申请退货退款的具体流程是什么，平台大概需要多长时间审核完成？",
+        "intent": "A1",
+        "expected_doc_ids": [
+            "faq_refund_004",
+            "faq_refund_003"
+        ],
+        "reference_answer": "适用条件：商品与详情页描述严重不符。\n操作步骤：1. 对比商品与描述的差异并拍照；2. 申请售后选择“退货退款”；3. 上传对比照片并说明差异。\n处理时间：48小时内审核完成。\n退款：无需等待商家确认，系统自动退款。"
+    },
+    {
+        "query": "今天天气怎么样，适合出门购物吗？",
+        "intent": "D1",
+        "expected_doc_ids": [
+            "faq_greet_001"
+        ],
+        "reference_answer": "您好，我是智能客服助手，有什么可以帮助您的吗？"
+    },
+    {
+        "query": "可以换货吗",
+        "intent": "A2",
+        "expected_doc_ids": [
+            "faq_exchange_001",
+            "faq_exchange_010"
+        ],
+        "reference_answer": "换新政策：7天内质量问题可申请换新；超过7天需维修。\n操作步骤：1. 申请售后选择“换货”；2. 上传质量问题凭证；3. 等待审核。"
+    },
+    {
+        "query": "维修多久",
+        "intent": "A2",
+        "expected_doc_ids": [
+            "faq_exchange_007",
+            "faq_exchange_002"
+        ],
+        "reference_answer": "维修时效：一般7个工作日内完成。\n特殊情况：需要返厂维修的可能延长至15个工作日。\n查询方式：APP内查看维修进度。"
+    },
+    {
+        "query": "鞋子收到后发现开胶了，能换新的吗？",
+        "intent": "A2",
+        "expected_doc_ids": [
+            "faq_exchange_003",
+            "faq_exchange_010"
+        ],
+        "reference_answer": "维修政策：30天内质量问题免费维修。\n操作步骤：1. 申请售后选择“维修”；2. 上传开胶照片；3. 选择维修方式。\n处理时间：7个工作日内完成维修。"
+    },
+    {
+        "query": "衣服买回来尺码小了一码，能换大一号的吗？",
+        "intent": "A2",
+        "expected_doc_ids": [
+            "faq_exchange_001",
+            "faq_exchange_008"
+        ],
+        "reference_answer": "操作步骤：1. APP内进入订单详情；2. 点击“申请售后”；3. 选择“换货”，填写需要的尺码。\n审核时间：24小时内完成审核。\n换货流程：审核通过后寄回商品，商家收到后寄出新品。"
+    },
+    {
+        "query": "附近有没有维修点？",
+        "intent": "A2",
+        "expected_doc_ids": [
+            "faq_exchange_005",
+            "faq_exchange_006"
+        ],
+        "reference_answer": "查询方式：1. APP内“我的”->“服务中心”；2. 选择“附近维修点”；3. 查看距离和营业时间。\n注意：部分品牌需预约，建议提前联系。"
+    },
+    {
+        "query": "维修是免费的吗？",
+        "intent": "A2",
+        "expected_doc_ids": [
+            "faq_exchange_009",
+            "faq_exchange_012"
+        ],
+        "reference_answer": "收费标准：保修期内质量问题免费；人为损坏或过保需要收费。\n报价方式：维修前会提供报价，确认后再维修。"
+    },
+    {
+        "query": "换货需要把配件一起寄回去吗？",
+        "intent": "A2",
+        "expected_doc_ids": [
+            "faq_exchange_013",
+            "faq_exchange_001"
+        ],
+        "reference_answer": "寄回要求：需寄回商品及所有原配件、包装。\n注意：缺少配件可能影响换货审核。"
+    },
+    {
+        "query": "我的手机屏幕摔碎了，请问是申请维修还是换货更合适，两者流程上有什么区别？",
+        "intent": "A2",
+        "expected_doc_ids": [
+            "faq_exchange_002",
+            "faq_exchange_010",
+            "faq_exchange_007"
+        ],
+        "reference_answer": "维修方式：1. APP内申请售后选择“维修”；2. 选择寄修或到店维修；3. 填写故障描述。\n寄修流程：审核通过后寄回，维修完成后寄回。\n到店维修：查看附近授权维修点，携带购机凭证。"
+    },
+    {
+        "query": "手机维修完成后如果同一问题再次出现，还有保修吗？",
+        "intent": "A2",
+        "expected_doc_ids": [
+            "faq_exchange_012",
+            "faq_exchange_009"
+        ],
+        "reference_answer": "保修政策：维修部位享受90天保修。\n注意：人为损坏不在保修范围内。"
+    },
+    {
+        "query": "我购买的笔记本电脑在使用三周后出现了键盘部分按键失灵的情况，这属于正常使用中出现的质量问题，请问我应该选择申请换货还是寄修，两种方式的处理时长分别是多久，换货的话运费由谁承担？",
+        "intent": "A2",
+        "expected_doc_ids": [
+            "faq_exchange_010",
+            "faq_exchange_007",
+            "faq_exchange_008"
+        ],
+        "reference_answer": "维修时效：一般7个工作日内完成。\n特殊情况：需要返厂维修的可能延长至15个工作日。\n查询方式：APP内查看维修进度。"
+    },
+    {
+        "query": "维修点周末有没有上班，去的时候需要带哪些材料，是否需要提前预约？",
+        "intent": "A2",
+        "expected_doc_ids": [
+            "faq_exchange_011",
+            "faq_exchange_006",
+            "faq_exchange_005"
+        ],
+        "reference_answer": "营业时间：大部分维修点周末正常营业，具体以APP查询为准。\n建议：提前电话确认营业时间，避免跑空。"
+    },
+    {
+        "query": "我想了解一下双十一活动有哪些优惠券可以领取？",
+        "intent": "B2",
+        "expected_doc_ids": [
+            "faq_promo_001",
+            "faq_promo_003"
+        ],
+        "reference_answer": "优惠券领取：1. APP内“我的”->“优惠券”查看可领取优惠券；2. 商品详情页领取商品专属优惠券；3. 关注店铺领取店铺券。\n使用规则：不同优惠券不可叠加，以优惠力度最大的为准。"
+    },
+    {
+        "query": "维修期间可以借用备用机吗？",
+        "intent": "A2",
+        "expected_doc_ids": [
+            "faq_exchange_014"
+        ],
+        "reference_answer": "备用机政策：部分品牌提供备用机服务，具体以品牌政策为准。\n申请方式：维修时可咨询客服。"
+    },
+    {
+        "query": "快递到哪了",
+        "intent": "A3",
+        "expected_doc_ids": [
+            "faq_logistics_001",
+            "faq_logistics_015"
+        ],
+        "reference_answer": "查询方式：1. APP内“我的订单”查看物流详情；2. 复制单号到快递公司官网查询；3. 关注快递公司公众号查询。\n更新频率：物流信息一般每4-6小时更新一次。"
+    },
+    {
+        "query": "能改地址吗",
+        "intent": "A3",
+        "expected_doc_ids": [
+            "faq_logistics_003"
+        ],
+        "reference_answer": "修改条件：快递未发出前可修改。\n操作步骤：1. APP内找到对应订单；2. 点击“修改地址”；3. 填写新地址并保存。\n注意：已发出的快递无法修改地址，需联系快递公司。"
+    },
+    {
+        "query": "单号在哪看",
+        "intent": "A3",
+        "expected_doc_ids": [
+            "faq_logistics_015"
+        ],
+        "reference_answer": "查询位置：APP内订单详情页，发货后会显示快递单号和物流公司。\n复制方式：点击单号可复制，方便到快递公司官网查询。"
+    },
+    {
+        "query": "下单三天了还没发货是怎么回事？",
+        "intent": "A3",
+        "expected_doc_ids": [
+            "faq_logistics_004"
+        ],
+        "reference_answer": "发货时效：一般48小时内发货，预售商品以页面说明为准。\n催发方式：APP内订单详情页点击“催发货”；或联系客服催促。"
+    },
+    {
+        "query": "快递员没打电话直接放驿站了，怎么投诉？",
+        "intent": "A3",
+        "expected_doc_ids": [
+            "faq_logistics_008"
+        ],
+        "reference_answer": "处理方式：1. 联系快递员要求送货上门；2. 如多次发生，可在APP内投诉；3. 可设置收货偏好为“必须送货上门”。"
+    },
+    {
+        "query": "物流信息三天没更新了，快递是不是丢了？",
+        "intent": "A3",
+        "expected_doc_ids": [
+            "faq_logistics_009",
+            "faq_logistics_012"
+        ],
+        "reference_answer": "处理方式：1. 联系快递公司客服查询；2. 联系平台客服协助；3. 如超过72小时未更新，可申请退款。"
+    },
+    {
+        "query": "春节期间快递还送吗，会不会很慢？",
+        "intent": "A3",
+        "expected_doc_ids": [
+            "faq_logistics_014"
+        ],
+        "reference_answer": "物流影响：节假日期间物流可能延迟1-3天。\n建议：节假日期间提前下单，预留充足时间。"
+    },
+    {
+        "query": "可以延长收货时间吗？",
+        "intent": "A3",
+        "expected_doc_ids": [
+            "faq_logistics_013"
+        ],
+        "reference_answer": "延迟方式：1. APP内订单详情点击“延长收货”；2. 每次可延长3天，最多延长2次。"
+    },
+    {
+        "query": "我的快递显示已签收但我根本没收到，家里也没人在，这种情况下我应该怎么处理？",
+        "intent": "A3",
+        "expected_doc_ids": [
+            "faq_logistics_008",
+            "faq_logistics_012",
+            "faq_logistics_001"
+        ],
+        "reference_answer": "处理流程：1. 联系快递公司确认丢失；2. 向平台申请退款或补发；3. 提供物流单号和相关凭证。"
+    },
+    {
+        "query": "我买的东西发货后快递显示退回商家了，是什么原因，我现在应该怎么处理？",
+        "intent": "A3",
+        "expected_doc_ids": [
+            "faq_logistics_006",
+            "faq_logistics_003"
+        ],
+        "reference_answer": "处理方式：1. 查看退回原因（地址错误、无人签收等）；2. 联系客服重新发货；3. 如需修改地址，重新下单。"
+    },
+    {
+        "query": "我在平台下单购买了一批货物，收货地址填写的是公司地址，但快递员在未提前联系的情况下将包裹放在了距公司较远的快递驿站，由于工作繁忙无法及时取件，请问我可以要求快递员重新送货上门吗，如果拒绝该如何投诉？",
+        "intent": "A3",
+        "expected_doc_ids": [
+            "faq_logistics_008"
+        ],
+        "reference_answer": "处理方式：1. 联系快递员要求送货上门；2. 如多次发生，可在APP内投诉；3. 可设置收货偏好为“必须送货上门”。"
+    },
+    {
+        "query": "我购买的国际海淘商品已经超过预计到达时间一周，物流查询显示货物滞留在海关，请问平台是否能协助处理，还是需要我自己联系物流公司？",
+        "intent": "A3",
+        "expected_doc_ids": [
+            "faq_logistics_011",
+            "faq_logistics_009"
+        ],
+        "reference_answer": "查询方式：1. APP内订单详情查看国际物流；2. 复制单号到对应国际快递公司官网查询；3. 耐心等待，国际物流更新较慢。"
+    },
+    {
+        "query": "我想知道这款冰箱的容量是多少，适合几口人的家庭？",
+        "intent": "B1",
+        "expected_doc_ids": [
+            "faq_product_006"
+        ],
+        "reference_answer": "容量信息：总容量218升，冷藏室142升，冷冻室76升。\n尺寸：宽595mm×深650mm×高1750mm。\n能效：一级能效，节能省电。"
+    },
+    {
+        "query": "这个防水吗",
+        "intent": "B1",
+        "expected_doc_ids": [
+            "faq_product_009"
+        ],
+        "reference_answer": "防水等级：50米防水，可佩戴游泳、洗手。\n注意：不建议潜水或桑拿时佩戴。"
+    },
+    {
+        "query": "多重",
+        "intent": "B1",
+        "expected_doc_ids": [
+            "faq_product_003"
+        ],
+        "reference_answer": "重量信息：约1.35kg，轻薄便携，适合日常办公和出差。\n尺寸：14英寸屏幕，机身厚度15.6mm。"
+    },
+    {
+        "query": "这款耳机一次充电能用多久？",
+        "intent": "B1",
+        "expected_doc_ids": [
+            "faq_product_007"
+        ],
+        "reference_answer": "续航信息：单次续航8小时，配合充电盒可达32小时。\n充电时间：充电10分钟可使用2小时。"
+    },
+    {
+        "query": "空调适合多大的房间用？",
+        "intent": "B1",
+        "expected_doc_ids": [
+            "faq_product_011"
+        ],
+        "reference_answer": "匹数信息：1.5匹，适合15-20平方米房间。\n能效：一级能效，变频冷暖。\n噪音：运行噪音≤35分贝。"
+    },
+    {
+        "query": "这件衣服的材质是什么，好打理吗？",
+        "intent": "B1",
+        "expected_doc_ids": [
+            "faq_product_002"
+        ],
+        "reference_answer": "材质成分：100%纯棉，柔软透气，适合春秋季节穿着。\n洗涤建议：建议手洗或轻柔机洗，避免暴晒。"
+    },
+    {
+        "query": "充电宝可以带上飞机吗，容量多大？",
+        "intent": "B1",
+        "expected_doc_ids": [
+            "faq_product_012"
+        ],
+        "reference_answer": "容量信息：20000mAh，支持双向快充。\n输出：USB-A 22.5W，Type-C 20W。\n重量：约350g。"
+    },
+    {
+        "query": "这个充电器支持iPhone的快充吗？",
+        "intent": "B1",
+        "expected_doc_ids": [
+            "faq_product_004"
+        ],
+        "reference_answer": "兼容性：支持iPhone 12及以上机型，PD20W快充。\n接口：Type-C to Lightning接口。\n认证：通过MFi认证，安全可靠。"
+    },
+    {
+        "query": "我想买一台路由器，请问这款的覆盖范围有多大，支持组网扩展吗，接口够用吗？",
+        "intent": "B1",
+        "expected_doc_ids": [
+            "faq_product_013"
+        ],
+        "reference_answer": "覆盖范围：单台覆盖120平方米，支持Mesh组网扩展。\n速率：AX3000，双频并发。\n接口：4个千兆LAN口。"
+    },
+    {
+        "query": "这款相机的像素怎么样，支持拍4K视频吗，有光学防抖吗？",
+        "intent": "B1",
+        "expected_doc_ids": [
+            "faq_product_010"
+        ],
+        "reference_answer": "像素信息：主摄像头5000万像素，副摄像头1200万像素+1000万像素。\n其他功能：支持4K视频录制，光学防抖。"
+    },
+    {
+        "query": "我打算为家里15平米左右的卧室购置一台变频空调，请问这款空调的匹数是否合适，能效等级是几级，运行时的噪音水平大概是多少分贝，对睡眠影响大吗？",
+        "intent": "B1",
+        "expected_doc_ids": [
+            "faq_product_011"
+        ],
+        "reference_answer": "匹数信息：1.5匹，适合15-20平方米房间。\n能效：一级能效，变频冷暖。\n噪音：运行噪音≤35分贝。"
+    },
+    {
+        "query": "我想购买这款手机，请问屏幕是什么材质的，分辨率和刷新率分别是多少，是否支持HDR显示，最高亮度能达到多少尼特？",
+        "intent": "B1",
+        "expected_doc_ids": [
+            "faq_product_001"
+        ],
+        "reference_answer": "屏幕参数：6.7英寸AMOLED全面屏，分辨率2400×1080，刷新率120Hz。\n其他参数：支持HDR10+，亮度1300尼特。"
+    },
+    {
+        "query": "这款洗衣机的洗涤功率和脱水功率分别是多少，能效是几级，适合几口人的家庭？",
+        "intent": "B1",
+        "expected_doc_ids": [
+            "faq_product_008"
+        ],
+        "reference_answer": "功率信息：洗涤功率300W，脱水功率400W。\n能效：二级能效，节水省电。\n容量：8公斤，适合3-4人家庭。"
+    },
+    {
+        "query": "请帮我推荐一下今晚去哪里吃饭比较好",
+        "intent": "D1",
+        "expected_doc_ids": [
+            "faq_greet_001"
+        ],
+        "reference_answer": "您好，我是智能客服助手，有什么可以帮助您的吗？"
+    },
+    {
+        "query": "有优惠吗",
+        "intent": "B2",
+        "expected_doc_ids": [
+            "faq_promo_001",
+            "faq_promo_004"
+        ],
+        "reference_answer": "优惠券领取：1. APP内“我的”->“优惠券”查看可领取优惠券；2. 商品详情页领取商品专属优惠券；3. 关注店铺领取店铺券。\n使用规则：不同优惠券不可叠加，以优惠力度最大的为准。"
+    },
+    {
+        "query": "券怎么用",
+        "intent": "B2",
+        "expected_doc_ids": [
+            "faq_promo_004"
+        ],
+        "reference_answer": "使用方式：1. 下单时在支付页面选择可用优惠券；2. 系统自动抵扣金额。\n注意：优惠券有使用门槛和有效期，使用前请查看详情。"
+    },
+    {
+        "query": "昨天刚买，今天发现降价了，能补差价吗？",
+        "intent": "B2",
+        "expected_doc_ids": [
+            "faq_promo_002"
+        ],
+        "reference_answer": "价保政策：平台7天价保服务。\n操作步骤：进入商品详情页，点击“申请价保”，系统计算差价并自动退回。\n注意：百亿补贴商品不参与价保。"
+    },
+    {
+        "query": "新用户有什么专属优惠？",
+        "intent": "B2",
+        "expected_doc_ids": [
+            "faq_promo_011"
+        ],
+        "reference_answer": "新人福利：1. 新人专享优惠券；2. 首单立减；3. 免费试用机会。\n领取方式：注册后自动发放到账户。"
+    },
+    {
+        "query": "优惠券过期了还能用吗？",
+        "intent": "B2",
+        "expected_doc_ids": [
+            "faq_promo_008"
+        ],
+        "reference_answer": "处理方式：过期优惠券无法恢复，建议及时使用。\n提醒：APP会在优惠券到期前发送提醒通知。"
+    },
+    {
+        "query": "平台券和店铺券可以同时使用吗？",
+        "intent": "B2",
+        "expected_doc_ids": [
+            "faq_promo_012"
+        ],
+        "reference_answer": "叠加规则：同一订单只能使用一张店铺券和一张平台券，不可叠加使用。\n例外：部分特殊活动可能支持叠加，以活动规则为准。"
+    },
+    {
+        "query": "怎么参加秒杀活动，抢到的几率大吗？",
+        "intent": "B2",
+        "expected_doc_ids": [
+            "faq_promo_007"
+        ],
+        "reference_answer": "参加方式：1. 关注商品详情页的秒杀时间；2. 提前加入购物车；3. 秒杀开始后立即下单。\n注意：秒杀商品数量有限，先到先得。"
+    },
+    {
+        "query": "我想买一件商品，既有满减活动又有店铺优惠券，应该怎么组合使用才最划算？",
+        "intent": "B2",
+        "expected_doc_ids": [
+            "faq_promo_015",
+            "faq_promo_012"
+        ],
+        "reference_answer": "选择建议：系统会自动选择最优惠的方式，无需手动选择。\n查看：下单时可在支付页面看到最终优惠金额。"
+    },
+    {
+        "query": "跨店满减是怎么计算的，比如买了A店100元和B店200元，满300减50，我实际每家店能减多少钱？",
+        "intent": "B2",
+        "expected_doc_ids": [
+            "faq_promo_006"
+        ],
+        "reference_answer": "计算方式：多个店铺商品一起结算，满减金额按比例分摊。\n注意：需在同一订单中购买，不同满减活动不可叠加。"
+    },
+    {
+        "query": "我是新注册的用户，请问注册完成后会自动获得新人优惠券吗，这些优惠券有使用门槛和有效期限制吗，可以和其他活动叠加使用吗？",
+        "intent": "B2",
+        "expected_doc_ids": [
+            "faq_promo_011",
+            "faq_promo_012",
+            "faq_promo_004"
+        ],
+        "reference_answer": "新人福利：1. 新人专享优惠券；2. 首单立减；3. 免费试用机会。\n领取方式：注册后自动发放到账户。"
+    },
+    {
+        "query": "我上周购买了一件商品原价500元，今天同款商品参加活动降到了380元，请问我可以申请价保退差价吗，申请流程是什么，大概多久到账？",
+        "intent": "B2",
+        "expected_doc_ids": [
+            "faq_promo_002"
+        ],
+        "reference_answer": "价保政策：平台7天价保服务。\n操作步骤：进入商品详情页，点击“申请价保”，系统计算差价并自动退回。\n注意：百亿补贴商品不参与价保。"
+    },
+    {
+        "query": "我的快递单号是多少，在哪里查？",
+        "intent": "A3",
+        "expected_doc_ids": [
+            "faq_logistics_015"
+        ],
+        "reference_answer": "查询位置：APP内订单详情页，发货后会显示快递单号和物流公司。\n复制方式：点击单号可复制，方便到快递公司官网查询。"
+    },
+    {
+        "query": "路由器怎么设置",
+        "intent": "B3",
+        "expected_doc_ids": [
+            "faq_usage_004"
+        ],
+        "reference_answer": "设置步骤：1. 连接路由器电源；2. 电脑或手机连接路由器WiFi；3. 访问192.168.1.1；4. 按照向导设置。\n注意：设置强密码，定期更新。"
+    },
+    {
+        "query": "电视怎么连网",
+        "intent": "B3",
+        "expected_doc_ids": [
+            "faq_usage_002"
+        ],
+        "reference_answer": "连接步骤：1. 进入电视设置；2. 选择网络设置；3. 选择WiFi网络；4. 输入密码连接。\n注意：确保WiFi信号稳定，距离不要太远。"
+    },
+    {
+        "query": "空调过滤网多久清洗一次，怎么洗？",
+        "intent": "B3",
+        "expected_doc_ids": [
+            "faq_usage_006"
+        ],
+        "reference_answer": "清洗步骤：1. 关闭电源；2. 拆卸过滤网；3. 用清水冲洗过滤网；4. 晾干后装回。\n建议：每2-3个月清洗一次，保证制冷效果。"
+    },
+    {
+        "query": "手机恢复出厂设置之前需要做什么准备？",
+        "intent": "B3",
+        "expected_doc_ids": [
+            "faq_usage_007"
+        ],
+        "reference_answer": "恢复步骤：1. 备份重要数据；2. 进入设置；3. 选择“系统”->“重置”；4. 选择“恢复出厂设置”。\n注意：恢复后数据会丢失，请提前备份。"
+    },
+    {
+        "query": "扫地机器人使用前需要注意什么？",
+        "intent": "B3",
+        "expected_doc_ids": [
+            "faq_usage_013"
+        ],
+        "reference_answer": "使用步骤：1. 充电至满电；2. 开启机器人；3. 选择清扫模式；4. 自动清扫完成后返回充电。\n注意：清扫前移除地面障碍物，确保路径畅通。"
+    },
+    {
+        "query": "蓝牙音箱怎么和手机配对？",
+        "intent": "B3",
+        "expected_doc_ids": [
+            "faq_usage_010"
+        ],
+        "reference_answer": "连接步骤：1. 音箱开机并进入配对模式；2. 手机开启蓝牙；3. 搜索并连接音箱；4. 连接成功后即可播放。"
+    },
+    {
+        "query": "打印机安装了驱动但电脑还是识别不了，可能是什么问题，要怎么排查？",
+        "intent": "B3",
+        "expected_doc_ids": [
+            "faq_usage_009"
+        ],
+        "reference_answer": "安装步骤：1. 连接打印机电源；2. 电脑下载对应驱动；3. 运行驱动安装程序；4. 按照提示完成安装。\n注意：确保下载与操作系统匹配的驱动。"
+    },
+    {
+        "query": "无人机第一次使用需要哪些准备工作，操控时有什么注意事项？",
+        "intent": "B3",
+        "expected_doc_ids": [
+            "faq_usage_012"
+        ],
+        "reference_answer": "操作步骤：1. 校准无人机；2. 连接遥控器；3. 解锁电机；4. 缓慢推油门起飞；5. 控制方向飞行。\n注意：选择空旷场地，避开人群和障碍物。"
+    },
+    {
+        "query": "我是摄影新手，刚买了一台单反相机，请问应该如何调整ISO、快门速度和光圈这些基本参数，是否建议一开始就用手动模式，还是先从自动模式入门比较好？",
+        "intent": "B3",
+        "expected_doc_ids": [
+            "faq_usage_005"
+        ],
+        "reference_answer": "参数调整：1. 进入手动模式；2. 调整ISO、快门速度、光圈；3. 根据场景调整白平衡。\n建议：新手可先使用自动模式，熟悉后再尝试手动模式。"
+    },
+    {
+        "query": "我购买的智能手表需要充电，请问是否必须使用原装充电器，充满电大概需要多长时间，充满电之后续航能维持多久？",
+        "intent": "B3",
+        "expected_doc_ids": [
+            "faq_usage_008"
+        ],
+        "reference_answer": "充电方式：1. 使用原装充电器；2. 将手表放在充电底座上；3. 连接电源。\n充电时间：约2小时充满，可使用1-2天。"
+    },
+    {
+        "query": "我想用投影仪连接笔记本电脑放PPT，请问需要什么连接线，投影仪应该切换到哪个输入源，电脑端需要做什么设置？",
+        "intent": "B3",
+        "expected_doc_ids": [
+            "faq_usage_011"
+        ],
+        "reference_answer": "连接步骤：1. 用HDMI线连接投影仪和电脑；2. 投影仪切换到HDMI输入；3. 电脑设置投影模式。\n注意：确保HDMI线质量良好，避免信号不稳定。"
+    },
+    {
+        "query": "我的账号忘记密码了怎么找回？",
+        "intent": "C1",
+        "expected_doc_ids": [
+            "faq_account_001",
+            "faq_account_005"
+        ],
+        "reference_answer": "找回方式：1. 登录页面点击“忘记密码”；2. 输入手机号；3. 接收验证码；4. 设置新密码。\n注意：新密码需包含字母和数字，长度8-20位。"
+    },
+    {
+        "query": "忘记密码了",
+        "intent": "C1",
+        "expected_doc_ids": [
+            "faq_account_001"
+        ],
+        "reference_answer": "找回方式：1. 登录页面点击“忘记密码”；2. 输入手机号；3. 接收验证码；4. 设置新密码。\n注意：新密码需包含字母和数字，长度8-20位。"
+    },
+    {
+        "query": "怎么注册",
+        "intent": "C1",
+        "expected_doc_ids": [
+            "faq_account_002"
+        ],
+        "reference_answer": "注册步骤：1. 打开APP点击“注册”；2. 输入手机号；3. 接收并输入验证码；4. 设置密码。\n注意：一个手机号只能注册一个账号。"
+    },
+    {
+        "query": "收不到验证码",
+        "intent": "C1",
+        "expected_doc_ids": [
+            "faq_account_010"
+        ],
+        "reference_answer": "解决方法：1. 检查手机号是否正确；2. 检查短信是否被拦截；3. 点击“重新发送”；4. 如仍收不到，联系客服。"
+    },
+    {
+        "query": "我的账号突然登不上去了，显示账号或密码错误",
+        "intent": "C1",
+        "expected_doc_ids": [
+            "faq_account_012",
+            "faq_account_001"
+        ],
+        "reference_answer": "解决方法：1. 检查账号和密码是否输入正确；2. 确认大小写是否正确；3. 如忘记密码，点击“忘记密码”找回。"
+    },
+    {
+        "query": "我想换绑定的手机号，怎么操作？",
+        "intent": "C1",
+        "expected_doc_ids": [
+            "faq_account_011"
+        ],
+        "reference_answer": "修改步骤：1. 进入“我的”->“设置”；2. 选择“账号与安全”；3. 点击“修改手机号”；4. 验证旧手机号后绑定新手机号。"
+    },
+    {
+        "query": "同一个账号可以在多台手机上同时登录吗？",
+        "intent": "C1",
+        "expected_doc_ids": [
+            "faq_account_013"
+        ],
+        "reference_answer": "登录规则：支持多设备登录，但同一时间只能在一个设备上使用部分功能。\n注意：如发现异常登录，建议修改密码。"
+    },
+    {
+        "query": "我想注销账号，注销之后之前的订单记录还能查到吗？",
+        "intent": "C1",
+        "expected_doc_ids": [
+            "faq_account_003"
+        ],
+        "reference_answer": "注销步骤：1. 进入“我的”->“设置”；2. 选择“账号与安全”；3. 点击“注销账号”；4. 按照提示完成验证。\n注意：注销后账号数据将被清空，无法恢复。"
+    },
+    {
+        "query": "我发现有人用我的账号下了订单，账号可能被盗了，我应该第一时间做什么？",
+        "intent": "C1",
+        "expected_doc_ids": [
+            "faq_account_008",
+            "faq_account_004"
+        ],
+        "reference_answer": "处理方式：1. 立即修改密码；2. 检查账号活动；3. 联系客服说明情况；4. 必要时冻结账号。"
+    },
+    {
+        "query": "我想绑定微信登录，这样是不是可以不用每次都输密码，怎么设置？",
+        "intent": "C1",
+        "expected_doc_ids": [
+            "faq_account_009"
+        ],
+        "reference_answer": "绑定步骤：1. 进入“我的”->“设置”；2. 选择“账号与安全”；3. 点击“第三方账号绑定”；4. 选择对应平台进行绑定。\n好处：可通过第三方账号快速登录。"
+    },
+    {
+        "query": "我的账号突然显示已被冻结，我并没有进行任何违规操作，请问账号被冻结的常见原因有哪些，申请解冻的流程是什么，大概需要多长时间才能恢复正常使用？",
+        "intent": "C1",
+        "expected_doc_ids": [
+            "faq_account_004"
+        ],
+        "reference_answer": "解冻方式：1. 联系客服说明情况；2. 提供身份验证信息；3. 客服审核后解冻。\n常见原因：账号异常登录、违规操作。"
+    },
+    {
+        "query": "我想为账号开启额外的安全保护措施，避免他人非法登录，请问平台提供哪些登录保护方式，应该在哪里设置，开启后每次登录都需要额外验证吗？",
+        "intent": "C1",
+        "expected_doc_ids": [
+            "faq_account_014"
+        ],
+        "reference_answer": "设置步骤：1. 进入“我的”->“设置”；2. 选择“账号与安全”；3. 开启“登录保护”；4. 设置保护方式（如短信验证）。"
+    },
+    {
+        "query": "这个品牌的鞋子质量怎么样，值不值得买？",
+        "intent": "B1",
+        "expected_doc_ids": [
+            "faq_product_005"
+        ],
+        "reference_answer": "尺码标准：采用标准运动鞋尺码，建议按平时穿的尺码购买。\n测量方式：可参考商品详情页的尺码表，测量脚长选择对应尺码。"
+    },
+    {
+        "query": "积分怎么查",
+        "intent": "C2",
+        "expected_doc_ids": [
+            "faq_member_001"
+        ],
+        "reference_answer": "查询方式：1. APP内“我的”->“会员中心”；2. 查看当前积分和积分明细。\n获取方式：购物、签到、评价等均可获得积分。"
+    },
+    {
+        "query": "积分会过期吗",
+        "intent": "C2",
+        "expected_doc_ids": [
+            "faq_member_005"
+        ],
+        "reference_answer": "过期规则：积分有效期为获得之日起12个月，过期自动清零。\n提醒：APP会在积分过期前发送提醒通知。"
+    },
+    {
+        "query": "怎么才能升级到更高的会员等级？",
+        "intent": "C2",
+        "expected_doc_ids": [
+            "faq_member_002",
+            "faq_member_006"
+        ],
+        "reference_answer": "升级方式：通过购物累积经验值，经验值达到一定标准后自动升级。\n等级权益：等级越高，享受的权益越多，如专属客服、生日礼包等。"
+    },
+    {
+        "query": "积分可以用来做什么？",
+        "intent": "C2",
+        "expected_doc_ids": [
+            "faq_member_003"
+        ],
+        "reference_answer": "积分用途：1. 兑换优惠券；2. 兑换实物商品；3. 参与积分抽奖；4. 抵扣订单金额。\n兑换方式：APP内“积分商城”进行兑换。"
+    },
+    {
+        "query": "会员日是什么时候，有什么特别活动？",
+        "intent": "C2",
+        "expected_doc_ids": [
+            "faq_member_007"
+        ],
+        "reference_answer": "会员日：每月18日为会员日，当天可享受专属优惠和活动。\n活动内容：会员日当天会有专属折扣、积分翻倍等活动。"
+    },
+    {
+        "query": "生日礼包怎么领，有有效期吗？",
+        "intent": "C2",
+        "expected_doc_ids": [
+            "faq_member_008"
+        ],
+        "reference_answer": "领取方式：生日当月APP会自动发放生日礼包到账户，可在“我的”->“优惠券”查看。\n领取时间：生日当月有效，过期作废。"
+    },
+    {
+        "query": "会员等级会不会因为长期不消费被降级？",
+        "intent": "C2",
+        "expected_doc_ids": [
+            "faq_member_011"
+        ],
+        "reference_answer": "降级规则：部分平台实行等级保级制度，如一年内未达到保级条件可能会降级。\n保级条件：可在会员中心查看具体保级要求。"
+    },
+    {
+        "query": "我想用积分兑换优惠券，但不知道积分兑换比例是多少，哪种兑换方式最划算？",
+        "intent": "C2",
+        "expected_doc_ids": [
+            "faq_member_014",
+            "faq_member_003"
+        ],
+        "reference_answer": "兑换步骤：1. APP内“我的”->“积分商城”；2. 选择想要兑换的商品或优惠券；3. 确认兑换。\n注意：兑换后积分立即扣除，不可撤销。"
+    },
+    {
+        "query": "我是新注册用户，自动成为什么会员等级，购物积分和经验值是如何计算的？",
+        "intent": "C2",
+        "expected_doc_ids": [
+            "faq_member_006",
+            "faq_member_010",
+            "faq_member_002"
+        ],
+        "reference_answer": "会员规则：注册账号后自动成为普通会员，通过购物累积经验值升级。\n升级条件：不同等级有不同的经验值要求，可在会员中心查看。"
+    },
+    {
+        "query": "我有大量即将过期的积分，想在过期之前全部兑换掉，请问积分商城有哪些兑换选项，兑换完成之后多久可以到账，如果兑换后申请退款积分会原路退回吗？",
+        "intent": "C2",
+        "expected_doc_ids": [
+            "faq_member_014",
+            "faq_member_005",
+            "faq_member_003"
+        ],
+        "reference_answer": "兑换步骤：1. APP内“我的”->“积分商城”；2. 选择想要兑换的商品或优惠券；3. 确认兑换。\n注意：兑换后积分立即扣除，不可撤销。"
+    },
+    {
+        "query": "平台的高级会员相比普通会员具体多了哪些权益，专属客服服务时间是怎么安排的，是否包含节假日？",
+        "intent": "C2",
+        "expected_doc_ids": [
+            "faq_member_004",
+            "faq_member_012"
+        ],
+        "reference_answer": "会员权益：1. 会员专享价；2. 免费运费券；3. 生日礼包；4. 优先抢购权；5. 专属客服。\n权益详情：可在会员中心查看完整权益列表。"
+    },
+    {
+        "query": "我想投诉一下客服态度问题",
+        "intent": "D2",
+        "expected_doc_ids": [
+            "faq_cs_011"
+        ],
+        "reference_answer": "投诉方式：1. 在客服会话中点击“投诉”按钮；2. 填写投诉原因；3. 平台会进行调查处理。"
+    },
+    {
+        "query": "你好",
+        "intent": "D1",
+        "expected_doc_ids": [
+            "faq_greet_001"
+        ],
+        "reference_answer": "您好，我是智能客服助手，有什么可以帮助您的吗？"
+    },
+    {
+        "query": "在吗",
+        "intent": "D1",
+        "expected_doc_ids": [
+            "faq_greet_009"
+        ],
+        "reference_answer": "在的，请问有什么可以帮助您的？"
+    },
+    {
+        "query": "谢谢你帮我解决了问题",
+        "intent": "D1",
+        "expected_doc_ids": [
+            "faq_greet_003",
+            "faq_greet_014"
+        ],
+        "reference_answer": "不客气，很高兴能帮到您。"
+    },
+    {
+        "query": "hello，我想咨询一个问题",
+        "intent": "D1",
+        "expected_doc_ids": [
+            "faq_greet_012"
+        ],
+        "reference_answer": "Hello! How can I help you today?"
+    },
+    {
+        "query": "拜拜",
+        "intent": "D1",
+        "expected_doc_ids": [
+            "faq_greet_007"
+        ],
+        "reference_answer": "再见！如有需要，随时联系我。"
+    },
+    {
+        "query": "你能帮我写一篇作文吗",
+        "intent": "D1",
+        "expected_doc_ids": [
+            "faq_greet_001"
+        ],
+        "reference_answer": "您好，我是智能客服助手，有什么可以帮助您的吗？"
+    },
+    {
+        "query": "你们公司是做什么的",
+        "intent": "D1",
+        "expected_doc_ids": [
+            "faq_greet_002"
+        ],
+        "reference_answer": "我是智能客服助手，专门为您提供购物、售后等相关服务。"
+    },
+    {
+        "query": "你好，请问你是机器人还是真人",
+        "intent": "D1",
+        "expected_doc_ids": [
+            "faq_greet_002"
+        ],
+        "reference_answer": "您好，我是智能客服助手，有什么可以帮助您的吗？"
+    },
+    {
+        "query": "你们平台有没有做公益活动，我想参与一下",
+        "intent": "D1",
+        "expected_doc_ids": [
+            "faq_greet_001"
+        ],
+        "reference_answer": "您好，我是智能客服助手，有什么可以帮助您的吗？"
+    },
+    {
+        "query": "转人工",
+        "intent": "D2",
+        "expected_doc_ids": [
+            "faq_cs_002",
+            "faq_cs_004"
+        ],
+        "reference_answer": "转接人工：1. APP内“我的”->“客服中心”；2. 点击“在线客服”；3. 输入“转人工”即可转接。\n服务时间：工作日9:00-21:00，周末10:00-18:00。"
+    },
+    {
+        "query": "客服电话多少",
+        "intent": "D2",
+        "expected_doc_ids": [
+            "faq_cs_003"
+        ],
+        "reference_answer": "客服电话：400-123-4567。\n服务时间：工作日9:00-21:00，周末10:00-18:00。"
+    },
+    {
+        "query": "我要投诉商家，他发货发错了还不给处理",
+        "intent": "D2",
+        "expected_doc_ids": [
+            "faq_cs_005",
+            "faq_cs_001"
+        ],
+        "reference_answer": "投诉流程：1. 找到对应订单；2. 点击“投诉商家”；3. 选择投诉原因并上传凭证；4. 平台会在48小时内处理。"
+    },
+    {
+        "query": "人工客服要等很久吗，有没有别的联系方式？",
+        "intent": "D2",
+        "expected_doc_ids": [
+            "faq_cs_015",
+            "faq_cs_006"
+        ],
+        "reference_answer": "排队情况：高峰期可能需要排队，建议提前准备好订单信息和问题描述，提高处理效率。"
+    },
+    {
+        "query": "怎么向平台反馈使用中遇到的问题？",
+        "intent": "D2",
+        "expected_doc_ids": [
+            "faq_cs_014"
+        ],
+        "reference_answer": "反馈方式：1. APP内“我的”->“设置”->“意见反馈”；2. 填写问题描述和联系方式；3. 平台会在3个工作日内回复。"
+    },
+    {
+        "query": "我遇到了一个紧急问题，商家发错货还拒绝处理，我应该通过什么渠道最快速地解决这个问题？",
+        "intent": "D2",
+        "expected_doc_ids": [
+            "faq_cs_012",
+            "faq_cs_005",
+            "faq_cs_002"
+        ],
+        "reference_answer": "紧急联系：1. 优先拨打客服电话400-123-4567；2. 在线客服标注“紧急”；3. 邮件主题注明“紧急”。"
+    },
+    {
+        "query": "我发现平台上有虚假商品信息，想举报这个商家，需要提供哪些证据，平台大概多久处理？",
+        "intent": "D2",
+        "expected_doc_ids": [
+            "faq_cs_008",
+            "faq_cs_005"
+        ],
+        "reference_answer": "举报方式：1. APP内找到对应内容；2. 点击“举报”按钮；3. 选择举报原因并提交。\n处理时间：平台会在24小时内审核处理。"
+    },
+    {
+        "query": "我在平台上购买商品后遇到了问题，多次联系在线智能客服都无法解决，想转接人工客服但一直显示排队中，请问除了在线客服之外还有哪些方式可以联系到人工服务，各渠道的响应时效分别是多少？",
+        "intent": "D2",
+        "expected_doc_ids": [
+            "faq_cs_006",
+            "faq_cs_003",
+            "faq_cs_007"
+        ],
+        "reference_answer": "联系方式：1. APP内在线客服；2. 客服电话400-123-4567；3. 邮件客服service@example.com。"
+    },
+    {
+        "query": "明天是周末，你们的人工客服几点开始上班？",
+        "intent": "D2",
+        "expected_doc_ids": [
+            "faq_cs_007"
+        ],
+        "reference_answer": "服务时间：工作日9:00-21:00，周末10:00-18:00。\n高峰期：节假日可能等待时间较长，建议错峰联系。"
+    }
+]
