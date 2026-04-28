@@ -2,6 +2,7 @@ from langchain_milvus import Milvus
 from langchain_community.embeddings import DashScopeEmbeddings
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import CharacterTextSplitter
+
 try:
     from langchain_elasticsearch import ElasticsearchStore
 except ImportError:
@@ -374,11 +375,13 @@ class KnowledgeBase:
         payload = json.dumps(key_data, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
-    def _vector_search(self, query: str, k: int, filter_expr=None):
+    def vector_search(self, query: str, k: int, filter_expr=None):
         """执行向量检索"""
         vector_results = []
         vector_time = 0
+
         try:
+
             if self.vector_store:
                 start = time.time()
                 vector_search_kwargs = {"k": k}
@@ -387,47 +390,79 @@ class KnowledgeBase:
                 vector_results = self.vector_store.similarity_search_with_score(query, **vector_search_kwargs)
                 vector_time = time.time() - start
                 logger.info("向量检索成功，返回 %s 条结果", len(vector_results))
+            
             else:
-                logger.warning("向量存储未初始化，跳过向量检索")
+                # 兜底,使用原生 pymilvus
+                logger.warning("向量存储未初始化，使用 pymilvus 原生进行兜底")
+                col = self._get_milvus_collection()
+                if col:
+                    start_fallback = time.time()
+                    query_vec = self.embeddings.embed_query(query)
+                    search_params = {"metric_type": "COSINE", "params": {"nprobe": 10}}
+                    result = col.search(
+                        data=[query_vec],
+                        anns_field="vector",
+                        param=search_params,
+                        limit=k,
+                        expr=filter_expr,
+                        output_fields=["text", "mysql_id", "intent_id", "original_question",
+                                   "action", "type", "doc_id"]
+                    )
+
+                    converted = []
+                    if result and len(result) > 0:
+                        for hit in result[0]:
+                            metadata = {
+                                "mysql_id": hit.entity.get("mysql_id"),
+                                "intent_id": hit.entity.get("intent_id"),
+                                "original_question": hit.entity.get("original_question"),
+                                "action": hit.entity.get("action"),
+                                "type": hit.entity.get("type"),
+                                "doc_id": hit.entity.get("doc_id")
+                            }
+                            metadata = {k: v for k, v in metadata.items() if v is not None}
+                            doc = Document(page_content=hit.entity.get("text", ""), metadata=metadata)
+                            converted.append((doc, hit.score))
+                    vector_time = time.time() - start_fallback
+                    logger.info("pymilvus 兜底检索完成，返回 %s 条结果", len(converted))
+                    return converted, vector_time
+
         except Exception as e:
-            if self._is_connection_error(e):
-                logger.warning("向量检索出现连接异常，尝试重连后重试一次: %s", e)
-                self.vector_store = None
-                self._initialized.clear()
-                # 強制斷開並重建底層 pymilvus 連接
-                try:
-                    if connections and connections.has_connection(self._milvus_alias):
-                        connections.disconnect(self._milvus_alias)
-                except Exception as e:
-                    logger.error("断开 Milvus 连接时出错: %s", e)
-                    pass
-                self.ensure_connected()
-                if self.vector_store:
-                    try:
-                        start = time.time()
-                        vector_search_kwargs = {"k": k}
-                        if filter_expr:
-                            vector_search_kwargs["expr"] = filter_expr
-                        vector_results = self.vector_store.similarity_search_with_score(query, **vector_search_kwargs)
-                        vector_time = time.time() - start
-                        logger.info("向量检索重试成功，返回 %s 条结果", len(vector_results))
-                        return vector_results, vector_time
-                    except Exception as retry_error:
-                        logger.error("向量检索重试失败: %s", retry_error)
-            else:
-                logger.error("向量检索失败: %s", e)
+            logger.error("廢了,langchain 和 pymilvus 向量检索都失败了: %s", e)
+
         return vector_results, vector_time
 
-    def _bm25_search(self, query: str, k: int):
+    def bm25_search(self, query: str, k: int):
         """执行BM25检索"""
         bm25_results = []
         bm25_time = 0
         try:
             if self.elasticsearch_store:
                 start = time.time()
-                bm25_results = self.elasticsearch_store.similarity_search_with_score(query, k=k)
+                es_client = self.elasticsearch_store.client
+
+                response = es_client.search(
+                    index=self._es_index,
+                    body={
+                        "query": {
+                            "match": {
+                                "text": query
+                            }
+                        },
+                        "size": k,
+                        "_source": True
+                    }
+                )
+
+                for hit in response["hits"]["hits"]:
+                    source = hit["_source"]
+                    metadata = source.get("metadata", {})
+                    page_content = source.get("text", "")
+                    doc = Document(page_content=page_content, metadata=metadata)
+                    bm25_results.append((doc, hit["_score"]))
+
                 bm25_time = time.time() - start
-                logger.info("BM25检索成功，返回 %s 条结果", len(bm25_results))
+                logger.info("BM25 純文本检索成功，返回 %s 条结果", len(bm25_results))
             else:
                 logger.warning("Elasticsearch存储未初始化，跳过BM25检索")
         except Exception as e:
@@ -462,33 +497,44 @@ class KnowledgeBase:
         scored.sort(key=lambda x: x[1], reverse=True)
         return [(doc, (score, "fallback")) for doc, score in scored[:k]]
 
-    def _hybrid_search(self, vector_results: list, bm25_results: list, k: int):
-        """使用RRF算法合并检索结果"""
+    def hybrid_search(self, vector_results: list, bm25_results: list, k: int):
+        """使用加权RRF算法合并检索结果"""
         doc_rank_map = {}
 
+        # Vector 的結果
         for rank, (doc, score) in enumerate(vector_results, 1):
             doc_id = doc.metadata.get("doc_id", self._generate_doc_id(doc))
             if doc_id not in doc_rank_map:
-                doc_rank_map[doc_id] = {"doc": doc, "ranks": [], "vector_score": score, "bm25_score": 0}
-            doc_rank_map[doc_id]["ranks"].append(rank)
+                doc_rank_map[doc_id] = {"doc": doc, "vector_rank": None, "bm25_rank": None, "vector_score": score, "bm25_score": 0}
+            doc_rank_map[doc_id]["vector_rank"] = rank
             doc_rank_map[doc_id]["vector_score"] = score
 
+        # BM25 的結果
         for rank, (doc, score) in enumerate(bm25_results, 1):
             doc_id = doc.metadata.get("doc_id", self._generate_doc_id(doc))
             if doc_id not in doc_rank_map:
-                doc_rank_map[doc_id] = {"doc": doc, "ranks": [], "vector_score": 0, "bm25_score": score}
-            doc_rank_map[doc_id]["ranks"].append(rank)
+                doc_rank_map[doc_id] = {"doc": doc, "vector_rank": None, "bm25_rank": None, "vector_score": 0, "bm25_score": score}
+            doc_rank_map[doc_id]["bm25_rank"] = rank
             doc_rank_map[doc_id]["bm25_score"] = score
 
+        # 進行 RRF 加權計算
         rrf_k = 60
+        vector_weight = 1.0
+        bm25_weight = 1.0
+
         rrf_results = []
         for doc_id, data in doc_rank_map.items():
-            rrf_score = sum(1 / (rrf_k + rank) for rank in data["ranks"])
-            combined_score = (data["vector_score"] or 0) + (data["bm25_score"] or 0)
+            rrf_score = 0.0
+            if data["vector_rank"] is not None:
+                rrf_score += vector_weight / (rrf_k + data["vector_rank"])
+            if data["bm25_rank"] is not None:
+                rrf_score += bm25_weight / (rrf_k + data["bm25_rank"])
+
             rrf_results.append({
                 "doc": data["doc"],
                 "rrf_score": rrf_score,
-                "combined_score": combined_score,
+                "vector_score": data["vector_score"],
+                "bm25_score": data["bm25_score"],
                 "source": "hybrid"
             })
 
@@ -543,16 +589,16 @@ class KnowledgeBase:
             return final_results
 
         with ThreadPoolExecutor(max_workers=2) as executor:
-            vector_future = executor.submit(self._vector_search, query, k * 2, filter_expr)
-            bm25_future = executor.submit(self._bm25_search, query, k * 2)
+            vector_future = executor.submit(self.vector_search, query, k * 2, filter_expr)
+            bm25_future = executor.submit(self.bm25_search, query, k * 2)
 
             vector_results, vector_time = vector_future.result()
             bm25_results, bm25_time = bm25_future.result()
 
-        rrf_results = self._hybrid_search(vector_results, bm25_results, k * 2)
+        rrf_results = self.hybrid_search(vector_results, bm25_results, k * 2)
 
         if rrf_results:
-            candidates = [(r["doc"], r["combined_score"]) for r in rrf_results]
+            candidates = [(r["doc"], r["rrf_score"]) for r in rrf_results]
             reranked_candidates = self._rerank_with_dashscope(query, candidates, k * 2)
             final_results = reranked_candidates[:k]
             logger.info("混合检索 + Rerank 成功，返回 %s 条结果", len(final_results))
@@ -695,8 +741,9 @@ class KnowledgeBase:
             logger.error("获取原生Milvus集合失败: %s", e)
             return None
 
-    def _vector_search(self, query: str, k: int, filter_expr=None):
-        """执行向量检索（带终极兜底）"""
+"""
+    def vector_search(self, query: str, k: int, filter_expr=None):
+        #执行向量检索（带终极兜底
         vector_results = []
         vector_time = 0
 
@@ -766,3 +813,4 @@ class KnowledgeBase:
             logger.warning("所有向量检索路径均失败，跳过向量检索")
         
         return vector_results, vector_time
+"""
