@@ -78,3 +78,39 @@ def ndcg_at_k(retrieved_items, relevant_items, k):
     ndcg = dcg_value / idcg_value if idcg_value > 0 else 0.0
     
     return ndcg
+
+def precision_at_k(retrieved_items, relevant_items, k):
+    """
+    計算單個查詢的 Precision@K。
+    Args:
+        retrieved_items (list): 系統檢索出的項目ID列表，按相關性排序。
+        relevant_items (set): 與查詢相關的項目ID集合。
+        k (int): 要考慮的前 K 個檢索項目。
+    Returns:
+        float: Precision@K 的值，範圍 [0, 1]。
+    """
+    if k <= 0 or not retrieved_items:
+        return 0.0
+    
+    # 取前 K 個檢索項目
+    top_k_retrieved = retrieved_items[:k]
+    
+    # 計算在前 K 個檢索項目中有多少是相關的
+    relevant_retrieved = sum(1 for item in top_k_retrieved if item in relevant_items)
+    
+    # 計算 Precision@K
+    return relevant_retrieved / k if k > 0 else 0.0
+
+def hit_rate_at_k(retrieved_items, relevant_items, k):
+    """
+    計算單個查詢的 Hit Rate@K。
+    Args:
+        retrieved_items (list): 系統檢索出的項目ID列表，按相關性排序。
+        relevant_items (set): 與查詢相關的項目ID集合。
+        k (int): 要考慮的前 K 個檢索項目。
+    Returns:
+        float: Hit Rate@K 的值，範圍 [0, 1]。
+    """
+    top_k = set(retrieved_items[:k])
+    return 1.0 if top_k & relevant_items else 0.0
+

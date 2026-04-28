@@ -4,7 +4,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from data.knowledge_base import KnowledgeBase
-from evaluation.metrics import recall_at_k, mrr, ndcg_at_k
+from evaluation.metrics import recall_at_k, mrr, ndcg_at_k , precision_at_k, hit_rate_at_k
 import json
 import logging
 import argparse
@@ -39,6 +39,8 @@ def run_eval(method: str , k: int = 5):
     total_ndcg = 0.0
     total_latency = 0.0
     single_query_latency = 0.0
+    total_precision = 0.0
+    total_hit_rate = 0.0
     num_queries = len(queries)
 
     # 開始評測
@@ -49,6 +51,7 @@ def run_eval(method: str , k: int = 5):
             vector_results, vector_time = kb.vector_search(q["query"], k=k)
             retrieved_items = [(doc.metadata.get("mysql_id"), score) for doc, score in vector_results]
             total_latency += vector_time
+
             single_query_latency = vector_time
 
             """
@@ -120,16 +123,28 @@ def run_eval(method: str , k: int = 5):
         total_ndcg += ndcg
         logging.info(f"[{index}/{num_queries}]NDCG@{k} for query '{q['query']}': {ndcg:.4f}")
 
+        precision = precision_at_k(pred_ids, relevant_items, k)
+        total_precision += precision
+        logging.info(f"[{index}/{num_queries}]Precision@{k} for query '{q['query']}': {precision:.4f}")
+
+        hit_rate = hit_rate_at_k(pred_ids, relevant_items, k)
+        total_hit_rate += hit_rate
+        logging.info(f"[{index}/{num_queries}]Hit Rate@{k} for query '{q['query']}': {hit_rate:.4f}")
+
         logging.info(f"[{index}/{num_queries}]檢索延遲: {single_query_latency:.4f} 秒")
     # 輸出平均評測指標
     avg_recall = total_recall / num_queries if num_queries > 0 else 0
     avg_mrr = total_mrr / num_queries if num_queries > 0 else 0
     avg_ndcg = total_ndcg / num_queries if num_queries > 0 else 0
+    avg_precision = total_precision / num_queries if num_queries > 0 else 0
+    avg_hit_rate = total_hit_rate / num_queries if num_queries > 0 else 0
     avg_latency_ms = ( total_latency / num_queries ) * 1000 if num_queries > 0 else 0
 
     logging.info(f"平均 Recall@{k}: {avg_recall:.4f}")
     logging.info(f"平均 MRR: {avg_mrr:.4f}")
     logging.info(f"平均 NDCG@{k}: {avg_ndcg:.4f}")
+    logging.info(f"平均 Precision@{k}: {avg_precision:.4f}")
+    logging.info(f"平均 Hit Rate@{k}: {avg_hit_rate:.4f}")
     logging.info(f"平均檢索延遲: {avg_latency_ms:.4f} 毫秒")
 
     return {
@@ -139,6 +154,8 @@ def run_eval(method: str , k: int = 5):
         "avg_recall" : avg_recall,
         "avg_mrr" : avg_mrr,
         "avg_ndcg" : avg_ndcg,
+        "avg_precision" : avg_precision,
+        "avg_hit_rate" : avg_hit_rate,
         "avg_latency_ms" : avg_latency_ms
     }
 
@@ -166,8 +183,8 @@ if __name__ == "__main__":
         logging.info(f"\\n{'='*60}")
         logging.info(f"所有評估方法對比總結 (K={args.k})")
         logging.info(f"{'='*60}")
-        logging.info(f"{'方法':<10} {'Recall@K':<12} {'MRR':<12} {'NDCG@K':<12} {'延遲(ms)':<12}")
+        logging.info(f"{'方法':<10} {'Recall@K':<12} {'MRR':<12} {'NDCG@K':<12} {'Precision@K':<12} {'Hit Rate@K':<12} {'延遲(ms)':<12}")
         logging.info(f"{'='*60}")
         for r in all_results:
-            logging.info(f"{r['method']:<10} {r['avg_recall']:<12.4f} {r['avg_mrr']:<12.4f} {r['avg_ndcg']:<12.4f} {r['avg_latency_ms']:<12.4f}")
+            logging.info(f"{r['method']:<10} {r['avg_recall']:<12.4f} {r['avg_mrr']:<12.4f} {r['avg_ndcg']:<12.4f} {r['avg_precision']:<12.4f} {r['avg_hit_rate']:<12.4f} {r['avg_latency_ms']:<12.4f}")
         logging.info(f"{'='*60}")
