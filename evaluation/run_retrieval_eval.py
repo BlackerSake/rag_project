@@ -1,7 +1,6 @@
 
 import sys
 from pathlib import Path
-from venv import logger
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from data.knowledge_base import KnowledgeBase
@@ -49,7 +48,7 @@ def run_eval(method: str , k: int = 5):
     retrieval_num_queries = 0.0
 
     # 開始評測
-    for index , q in enumerate(queries[:5], 1):
+    for index , q in enumerate(queries, 1):
         retrieved_items = []
 
         if method == "vector":
@@ -81,7 +80,7 @@ def run_eval(method: str , k: int = 5):
                 print("检索到的 ID 和分数:", [(doc.metadata.get("mysql_id"), score) for doc, score in bm25_results])
                 print("检索到的文本前 50 字:", [doc.page_content[:50] for doc, _ in bm25_results])
             """
-            
+
         elif method == "hybrid":
             start_time = time.time()
 
@@ -199,8 +198,7 @@ def run_eval(method: str , k: int = 5):
 
             # D1 意圖: 走正常檢索指標評估
             start_time = time.time()
-            results = kb.hybrid_rerank_retrieve(q["query"], intent_id=intent_id,
-                                                k=k, fallback_to_original=False)
+            results = kb.hybrid_rerank_retrieve(q["query"], k=k, filter_expr=None)
             single_query_latency = time.time() - start_time
             total_latency += single_query_latency
 
