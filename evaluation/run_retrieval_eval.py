@@ -1,10 +1,12 @@
 
 import sys
 from pathlib import Path
+from venv import logger
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from data.knowledge_base import KnowledgeBase
 from evaluation.metrics import recall_at_k, mrr, ndcg_at_k , precision_at_k, hit_rate_at_k
+
 import json
 import logging
 import argparse
@@ -41,10 +43,13 @@ def run_eval(method: str , k: int = 5):
     single_query_latency = 0.0
     total_precision = 0.0
     total_hit_rate = 0.0
+    d1_total = 0.0
+    d1_correct_skip = 0.0
     num_queries = len(queries)
+    retrieval_num_queries = 0.0
 
     # 開始評測
-    for index , q in enumerate(queries , 1):
+    for index , q in enumerate(queries[:5], 1):
         retrieved_items = []
 
         if method == "vector":
@@ -75,14 +80,14 @@ def run_eval(method: str , k: int = 5):
                 print("期望 ID:", q.get("expected_doc_ids"))
                 print("检索到的 ID 和分数:", [(doc.metadata.get("mysql_id"), score) for doc, score in bm25_results])
                 print("检索到的文本前 50 字:", [doc.page_content[:50] for doc, _ in bm25_results])
-
             """
+            
         elif method == "hybrid":
             start_time = time.time()
 
             vector_results, _ = kb.vector_search(q["query"], k=k*2)
             bm25_results, _ = kb.bm25_search(q["query"], k=k*2)
-            hybrid_list = kb.hybrid_search(vector_results, bm25_results, k=k)
+            hybrid_results_list = kb.hybrid_search(vector_results, bm25_results, k=k)
 
             end_time = time.time()
             total_latency += (end_time - start_time)
@@ -91,14 +96,127 @@ def run_eval(method: str , k: int = 5):
             # 提取 mysql_id，注意 hybrid_list 里的元素是字典，包含 'doc' 和 'rrf_score' 等键
             retrieved_items = [
                 (item["doc"].metadata.get("mysql_id"), item["rrf_score"]) 
-                for item in hybrid_list 
+                for item in hybrid_results_list 
                 if item["doc"].metadata.get("mysql_id") is not None
                 ]
+        elif method == "hybrid_rerank":
+            start_time = time.time()
+
+            vector_results, _ = kb.vector_search(q["query"], k=k*2)
+            bm25_results,_ = kb.bm25_search(q["query"], k=k*2)
+            hybrid_rerank_results_list = kb.hybrid_rerank_search(
+                query = q["query"],
+                vector_results = vector_results,
+                bm25_results = bm25_results,
+                k = k
+            )
+            end_time = time.time()
+            total_latency += ( end_time - start_time )
+            single_query_latency =  end_time - start_time 
+
+            retrieved_items = [
+                (doc.metadata.get("mysql_id"),score)
+                for doc, score in hybrid_rerank_results_list
+                if doc.metadata.get("mysql_id") is not None
+                ]
+        
+        elif method == "multi_query_retrieve" :
+            start_time = time.time()
+
+            multi_query_results = kb.multi_query_retrieve(
+                query=q["query"],
+                k=k,
+                filter_expr=None
+            )
+
+            end_time = time.time()
+            total_latency += ( end_time - start_time )
+            single_query_latency = end_time - start_time
+
+            retrieved_items = [
+                (doc.metadata.get("mysql_id"), score)
+                for doc, score in multi_query_results
+                if doc.metadata.get("mysql_id") is not None
+            ]
+
+        elif method =="rewrite_query":
+            rewritten = kb.rewrite_query(q["query"])
+
+            start_time = time.time()
+
+            results = kb.hybrid_rerank_retrieve(rewritten, k=k)
+
+            end_time = time.time()
+            total_latency += ( end_time - start_time )
+            single_query_latency = end_time - start_time
+
+            retrieved_items = [
+                (doc.metadata.get("mysql_id"), score)
+                for doc, score in results
+                if doc.metadata.get("mysql_id") is not None
+            ]
+
+        elif method == "intent_filtered":
+            intent_id = q.get("intent")
+
+            if not intent_id:
+                logging.warning(f"⚠️ intent_filtered 評測缺少 intent_id ❌: {q}")
+                num_queries -= 1
+                continue
+
+            #relevant_items = set(q.get("expected_doc_ids", []))
+            if intent_id == "D1":
+                d1_total += 1
+
+                if q.get("expected_doc_ids"):
+                    logging.error(f"[{index}] D1 意图却标注了 expected_doc_ids ❌，D1跳过评估: {q['query']}")
+                    num_queries -= 1
+                    d1_total -= 1
+                    continue
+
+                start_time = time.time()
+
+                results = kb.intent_filtered_retrieve(
+                    query=q["query"],
+                    intent_id=intent_id,
+                    k=k,
+                    fallback_to_unfiltered=False,
+                )
+
+                single_query_latency = time.time() - start_time
+                total_latency += single_query_latency
+
+                is_correct_skip = (len(results) == 0 )
+                if is_correct_skip:
+                    d1_correct_skips += 1
+
+                logging.info(
+                        f"[{index}/{num_queries}] D1跳过评估: {'✅ 正确跳过' if is_correct_skip else '❌ 未跳过'}"
+                        f" | 查询: '{q['query']}' | 延迟: {single_query_latency:.4f}s"
+                    )
+                
+                continue
+
+            # D1 意圖: 走正常檢索指標評估
+            start_time = time.time()
+            results = kb.hybrid_rerank_retrieve(q["query"], intent_id=intent_id,
+                                                k=k, fallback_to_original=False)
+            single_query_latency = time.time() - start_time
+            total_latency += single_query_latency
+
+
+            retrieved_items = [
+                (doc.metadata.get("mysql_id"), score)
+                for doc, score in results
+                if doc.metadata.get("mysql_id") is not None
+            ]
+
         else:
             logging.error(f"未知的檢索方法: {method}，將跳過該查詢。")
             return None
         
         # 計算評測指標
+        retrieval_num_queries += 1
         relevant_items = set(q.get("expected_doc_ids", []))
         # 提取檢索結果中的文檔 ID，並去重
         pred_ids = []
@@ -133,6 +251,7 @@ def run_eval(method: str , k: int = 5):
 
         logging.info(f"[{index}/{num_queries}]檢索延遲: {single_query_latency:.4f} 秒")
     # 輸出平均評測指標
+
     avg_recall = total_recall / num_queries if num_queries > 0 else 0
     avg_mrr = total_mrr / num_queries if num_queries > 0 else 0
     avg_ndcg = total_ndcg / num_queries if num_queries > 0 else 0
@@ -164,13 +283,13 @@ if __name__ == "__main__":
     parser.add_argument("--method",
                         type=str, 
                         default="all", 
-                        choices=["vector", "bm25", "hybrid","all"])
-    parser.add_argument("--k",
-                        type=int,
-                        default=3)
+                        choices=["vector", "bm25", "hybrid","hybrid_rerank", 
+                                 "multi_query_retrieve", "intent_filtered", "all"])
+    parser.add_argument("--k", type=int, default=3)
     args = parser.parse_args()
 
-    methods = ["vector", "bm25", "hybrid"] if args.method == "all" else [args.method]
+    methods = ["vector", "bm25", "hybrid", "hybrid_rerank",
+               "multi_query_retrieve", "intent_filtered"] if args.method == "all" else [args.method]
     all_results = []
 
     for method in methods:

@@ -1,7 +1,4 @@
-
-
 import json
-import hashlib
 import logging
 from datetime import datetime
 
@@ -9,13 +6,13 @@ from data.kb_config import KBConfig
 
 logger = logging.getLogger(__name__)
 
+
 class SearchLogger:
     def __init__(self, config: KBConfig, thread_pool, evaluator):
         self.config = config
         self._thread_pool = thread_pool
         self._retrieval_evaluator = evaluator
         self.retrieval_evaluation_events = []
-        
 
     def _async_log_search(self, query, result_count, response_time, from_cache, vector_time=0, bm25_time=0, merge_time=0):
         """异步记录搜索日志"""
