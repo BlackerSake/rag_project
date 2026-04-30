@@ -1,6 +1,7 @@
-# 智能客服Agent（基于RAG技术）
+# 智能客服Agent（不是）
 
-Made by math_King Jumping
+
+Made by Math_King Jumping
 ### 測試數據只120條
 #### rrf_k = 60 & 比例: 1:1 (Qwen3-rerank)
 |         方法          | Recall@3 |  MRR   | NDCG@3 | Precision@3 | Hit Rate@3 | Latency (ms) |
@@ -11,6 +12,9 @@ Made by math_King Jumping
 | Hybrid + Rerank      |  0.8111  | 0.9083 | 0.8253 |   0.3750    |   0.9250   |   2416.75    |
 | Multi-query + Rerank |  0.8139  | 0.9069 | 0.8266 |   0.3778    |   0.9250   |   1254.80    |
 | intent_filtered      |  0.8364  | 0.9404 | 0.8540 |   0.3945    |   0.9541   |   763.3969   |
+
+
+
 ## 快速开始
 
 ### 环境要求
