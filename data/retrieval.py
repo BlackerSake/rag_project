@@ -12,6 +12,7 @@ from pathlib import Path
 
 from data.stores import StoreManager
 from data.kb_config import KBConfig
+from data.confidence import ConfidenceGate, ConfidenceHistory
 from data.query_processing import split_user_input
 
 from langchain_core.documents import Document
@@ -27,6 +28,14 @@ class RetrievalService:
         self.cache = cache
         self._thread_pool = thread_pool
         self.observer = observer
+        self.confidence_history = ConfidenceHistory(
+            max_size=int(getattr(self.config, "confidence_window_size", 100))
+        )
+        self._confidence_gate = ConfidenceGate(
+            history=self.confidence_history,
+            fallback_p25=float(getattr(self.config, "confidence_fallback_p25", 0.5)),
+            fallback_p75=float(getattr(self.config, "confidence_fallback_p75", 0.9)),
+        )
 
     def _generate_doc_id(self, doc: Document) -> str:
         """生成稳定文档ID。"""
@@ -46,6 +55,7 @@ class RetrievalService:
                     vector_search_kwargs["expr"] = filter_expr
                 vector_results = self.stores.vector_store.similarity_search_with_score(query, **vector_search_kwargs)
                 vector_time = time.time() - start
+                self._update_confidence_history(vector_results)
                 logger.info("向量檢索成功✅，返回 %s 條結果", len(vector_results))
 
             else:
@@ -89,6 +99,37 @@ class RetrievalService:
 
         return vector_results, vector_time
 
+    def _update_confidence_history(self, vector_results: list) -> None:
+        """记录本次向量检索 Top-1 分数，用于动态置信度校准。"""
+        if not vector_results:
+            return
+        try:
+            self.confidence_history.update(vector_results[0][1])
+        except (TypeError, ValueError) as exc:
+            logger.warning("Top-1 置信度分数无效，跳过窗口更新: %s", exc)
+
+    def _calibrate_thresholds(self) -> dict:
+        """基于当前滑动窗口计算 P25/P75 阈值。"""
+        thresholds = self._confidence_gate.calibrate_thresholds()
+        return {
+            "p25": thresholds.p25,
+            "p75": thresholds.p75,
+            "sample_count": thresholds.sample_count,
+            "window_size": thresholds.window_size,
+        }
+
+    def confidence_gate(self, score: float) -> dict:
+        """对一次检索的 Top-1 分数进行 HIGH / MEDIUM / LOW 门控。"""
+        return self._confidence_gate.decide(score)
+
+    def seed_confidence_history(self, scores: list[float]) -> None:
+        """使用离线评测分数预填滑动窗口。"""
+        self.confidence_history.extend(scores)
+
+    def reset_confidence_history(self) -> None:
+        """清空置信度滑动窗口，便于评测脚本分阶段观察。"""
+        self.confidence_history.clear()
+
     def bm25_search(self, query: str, k: int):
         """執行BM25檢索"""
         bm25_results = []
@@ -126,6 +167,18 @@ class RetrievalService:
             logger.error("BM25檢索失敗❌: %s", e)
         return bm25_results, bm25_time
 
+    def _normalize_score(self, doc_score_list:list) -> list:
+        """對檢索結果 進行 Min-Max 歸一化 至 0-1"""
+        if not doc_score_list:
+            return doc_score_list
+        scores = [score for _, score in doc_score_list]
+        min_score = min(scores)
+        max_score = max(scores)
+
+        if max_score == min_score:
+            return [(doc, 1.0) for doc, _ in doc_score_list]
+        
+        return [(doc, (score - min_score) / (max_score - min_score)) for doc, score in doc_score_list]
     
     def hybrid_search(self, vector_results: list, bm25_results: list, k: int):
         """使用加權 RRF 算法合併檢索結果"""
@@ -147,10 +200,27 @@ class RetrievalService:
             doc_rank_map[doc_id]["bm25_rank"] = rank
             doc_rank_map[doc_id]["bm25_score"] = score
 
+        # 對 Vector 和 BM25 的分數進行歸一化
+        vector_id_scores = [(doc_id, data["vector_score"]) 
+                            for doc_id, data in doc_rank_map.items() 
+                            if data["vector_score"] is not None]
+        bm25_id_scores = [(doc_id, data["bm25_score"]) 
+                        for doc_id, data in doc_rank_map.items() 
+                        if data["bm25_score"] is not None]
+
+        normalized_vector = dict(self._normalize_score(vector_id_scores))
+        normalized_bm25 = dict(self._normalize_score(bm25_id_scores))
+
+        for doc_id, data in doc_rank_map.items():
+            if doc_id in normalized_vector:
+                data["vector_score"] = normalized_vector[doc_id]
+            if doc_id in normalized_bm25:
+                data["bm25_score"] = normalized_bm25[doc_id]
+
         # 進行 RRF 加權計算
         rrf_k = 60
-        vector_weight = 1.0
-        bm25_weight = 1.0
+        vector_weight = 0.75
+        bm25_weight = 0.25
 
         rrf_results = []
         for doc_id, data in doc_rank_map.items():
@@ -184,7 +254,6 @@ class RetrievalService:
 
             doc_texts = [doc.page_content for doc, _score in candidates]
 
-            # 建議單獨配置 rerank_model，不要復用 embedding model
             rerank_model = getattr(self.config, "rerank_model", None) or "qwen3-rerank"
 
             resp = dashscope.TextReRank.call(
@@ -429,7 +498,7 @@ class RetrievalService:
                 )
                 if response.output and response.output.text:
                     rewritten = response.output.text.strip()
-                    if len(rewrite) > 2:
+                    if len(rewritten) > 2:
                         logger.info(f"查詢改寫:'{query}' -> '{rewritten}'")
                         return rewritten
                     
@@ -677,7 +746,6 @@ class RetrievalService:
         key_data = {"query": query, "k": k, "filter_expr": filter_expr}
         payload = json.dumps(key_data, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
-
 
 
 

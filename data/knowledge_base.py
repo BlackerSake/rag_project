@@ -116,6 +116,18 @@ class KnowledgeBase:
     def rewrite_query(self, *args, **kwargs):
         return self.retriever.rewrite_query(*args, **kwargs)
 
+    def confidence_gate(self, *args, **kwargs):
+        return self.retriever.confidence_gate(*args, **kwargs)
+
+    def seed_confidence_history(self, *args, **kwargs):
+        return self.retriever.seed_confidence_history(*args, **kwargs)
+
+    def reset_confidence_history(self):
+        return self.retriever.reset_confidence_history()
+
+    def get_confidence_thresholds(self):
+        return self.retriever._calibrate_thresholds()
+
     def get_milvus_collection_stats(self, collection_name=None):
         return self.stores.get_milvus_collection_stats(collection_name)
 
