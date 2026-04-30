@@ -5,9 +5,10 @@ import time
 from langchain_milvus import Milvus
 
 try:
-    from pymilvus import Collection, connections, utility
+    from pymilvus import Collection, MilvusClient, connections, utility
 except ImportError:
     Collection = None
+    MilvusClient = None
     connections = None
     utility = None
 
@@ -29,6 +30,14 @@ class StoreManager:
         self.elasticsearch_store = None
         self._init_lock = threading.Lock()
         self.initialized = threading.Event()
+
+    def _milvus_connection_args(self) -> dict:
+        """构建 Milvus 客户端连接参数。"""
+        args = {"uri": self.config.milvus_uri}
+        timeout = getattr(self.config, "milvus_timeout", None)
+        if timeout is not None:
+            args["timeout"] = timeout
+        return args
 
     def _is_milvus_connection_alive(self) -> bool:
         """檢查 Milvus 連接是否活躍"""
@@ -66,7 +75,7 @@ class StoreManager:
                 logger.info(
                     "尝试連接 Milvus: %s (尝试 %s/%s)", self.config.milvus_uri, attempt + 1, self.config.milvus_connect_retries,
                     )
-                connections.connect(alias=self.config.milvus_alias, uri=self.config.milvus_uri)
+                connections.connect(alias=self.config.milvus_alias, **self._milvus_connection_args())
                 if self._is_milvus_connection_alive():
                     logger.info("成功連接到 Milvus")
                     return True
@@ -84,21 +93,40 @@ class StoreManager:
         logger.error("建立 pymilvus 連接次数耗尽，最终失败")
         return False
 
+    def _ensure_langchain_milvus_orm_connection(self, connection_args: dict) -> str | None:
+        """
+        langchain_milvus 0.3.x 通过 MilvusClient 建立连接后，会继续用 ORM
+        Collection(..., using=client._using) 读取 schema。pymilvus 2.6.x 的
+        MilvusClient 不会自动把这个 cm-* alias 注册到 connections，因此需要显式补齐。
+        """
+        if MilvusClient is None or connections is None:
+            logger.warning("pymilvus 未安裝，无法为 langchain_milvus 准备 ORM 連接")
+            return None
+
+        try:
+            client = MilvusClient(**connection_args)
+            alias = client._using
+            if not connections.has_connection(alias):
+                connections.connect(alias=alias, **connection_args)
+            logger.info("langchain_milvus ORM 連接已就绪: %s", alias)
+            return alias
+        except Exception as exc:
+            logger.error("准备 langchain_milvus ORM 連接失败: %s", exc)
+            return None
+
     def _init_milvus_vector_store(self) -> None:
         """初始化Milvus向量存储"""
 
-        LangChain_alias = "langchain"
+        connection_args = self._milvus_connection_args()
         max_attempts = 2
         for attempt in range(max_attempts):
             try:
                 logger.info("尝试初始化 Milvus 向量库 (尝试 %s/%s)", attempt + 1, max_attempts)
+                self._ensure_langchain_milvus_orm_connection(connection_args)
                 self.vector_store = Milvus(
                     embedding_function=self.embeddings,
                     collection_name=self.config.milvus_collection,
-                    connection_args={
-                        "uri": self.config.milvus_uri,
-                        "alias": self.config.milvus_alias
-                    },
+                    connection_args=connection_args,
                     index_params={
                         "metric_type": "COSINE"
                     },
@@ -168,8 +196,9 @@ class StoreManager:
             if self.vector_store is not None and self.elasticsearch_store is not None:
                 self.initialized.set()
 
-            self.initialized.set()
-            logger.info("已标记 Milvus/ES 初始化完成，后续调用将跳过重连")
+            #self.initialized.set()
+            # 即使失敗也設置爲 initialized,後續不再重新初始化,先逃避一手
+            #logger.info("⚠️⚠️⚠️已标记 Milvus/ES 初始化完成，后续调用将跳过重连")
         return self.vector_store
 
     def _initialize_elasticsearch_index(self):
@@ -250,7 +279,7 @@ class StoreManager:
         try:
             if not connections.has_connection(self.config.milvus_alias):
                 logger.warning("原生連接不存在，尝试建立...")
-                connections.connect(alias=self.config.milvus_alias, uri=self.config.milvus_uri)
+                connections.connect(alias=self.config.milvus_alias, **self._milvus_connection_args())
             col = Collection(self.config.milvus_collection, using=self.config.milvus_alias)
             col.load()
             return col

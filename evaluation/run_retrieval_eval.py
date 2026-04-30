@@ -187,7 +187,7 @@ def run_eval(method: str , k: int = 5):
 
                 is_correct_skip = (len(results) == 0 )
                 if is_correct_skip:
-                    d1_correct_skips += 1
+                    d1_correct_skip += 1
 
                 logging.info(
                         f"[{index}/{num_queries}] D1跳过评估: {'✅ 正确跳过' if is_correct_skip else '❌ 未跳过'}"

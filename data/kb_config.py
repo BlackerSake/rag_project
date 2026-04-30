@@ -18,6 +18,7 @@ class KBConfig:
     milvus_collection:str
     milvus_alias:str
     milvus_connect_retries:int
+    milvus_timeout:float
 
     # elasticsearch配置
     es_url:str
@@ -34,6 +35,11 @@ class KBConfig:
     # evaluation配置
     retrieval_eval_enabled:bool
     retrieval_eval_top_k:int
+
+    # confidence gate配置
+    confidence_window_size:int
+    confidence_fallback_p25:float
+    confidence_fallback_p75:float
 
     @classmethod
     def from_env(cls) -> "KBConfig":
@@ -54,6 +60,7 @@ class KBConfig:
             milvus_collection=os.getenv("MILVUS_COLLECTION_NAME", "customer_service"),
             milvus_alias="default",
             milvus_connect_retries=int(os.getenv("MILVUS_CONNECT_RETRIES", "3")),
+            milvus_timeout=float(os.getenv("MILVUS_TIMEOUT", "10")),
 
             es_url=os.getenv("ES_URL", "http://localhost:9200"),
             es_index=os.getenv("ES_INDEX_NAME", "customer_service"),
@@ -65,4 +72,7 @@ class KBConfig:
             rerank_top_k=int(os.getenv("RERANK_TOP_K", "6")),
             retrieval_eval_enabled=os.getenv("RETRIEVAL_EVAL_ENABLED", "true").lower() == "true",
             retrieval_eval_top_k=int(os.getenv("RETRIEVAL_EVAL_TOP_K", "5")),
+            confidence_window_size=int(os.getenv("CONFIDENCE_WINDOW_SIZE", "100")),
+            confidence_fallback_p25=float(os.getenv("CONFIDENCE_FALLBACK_P25", "0.5")),
+            confidence_fallback_p75=float(os.getenv("CONFIDENCE_FALLBACK_P75", "0.9")),
         )
