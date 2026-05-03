@@ -3,7 +3,7 @@ import sys
 import asyncio
 import json
 import re
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from .state import State
 from .schema import (
     direct_answer_prompt,
@@ -12,6 +12,7 @@ from .schema import (
     summarization_prompt,
     chat_response_prompt,
     query_decomposition_judge_prompt,
+    query_rewrite_prompt,
 )
 from .models import model
 from .intent_manager import get_intent_manager
@@ -21,13 +22,31 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data.knowledge_base import KnowledgeBase
 from utils.logging_config import get_logger
-from tools.manager import get_tool_by_intent
+from tools.manager import create_customer_service_react_agent
 
 # 获取日志记录器
 logger = get_logger(__name__)
 
 # 初始化知识库
 knowledge_base = KnowledgeBase()
+
+REACT_TOOL_SYSTEM_PROMPT = (
+    "你是智能客服的有狀態 ReAct 工具調度節點。你會收到本輪所有子問題、"
+    "以及本輪/歷史已執行過的工具與Observation。\n"
+    "你需要先整體規劃，再決定是否調用工具。可用工具只用於查詢即時或訂單型資料；"
+    "若問題更適合知識庫回答，請不要調用工具。\n"
+    "當用戶詢問快遞、物流進度、包裹到哪裡且提供單號時，應調用 query_logistics。\n"
+    "如果某個物流單號已在已執行工具記錄中查過，禁止再次調用工具，直接復用已有Observation。\n"
+    "如果本輪多個子問題是同一單號，只需查一次，其他子問題復用結果。\n"
+    "如果缺少物流單號，不要編造單號，也不要調用工具。\n"
+    "最後請簡要說明哪些問題已用工具處理，哪些需要知識庫。"
+)
+
+react_tool_agent = create_customer_service_react_agent(
+    model,
+    system_prompt=REACT_TOOL_SYSTEM_PROMPT,
+    enable_logging=True,
+)
 
 # 获取意图管理器
 intent_manager = None
@@ -39,6 +58,42 @@ def _format_knowledge_preview(content: str, max_length: int = 120) -> str:
     if len(preview) > max_length:
         return preview[:max_length] + "..."
     return preview
+
+
+def _format_conversation_history(messages: list, max_messages: int = 12) -> str:
+    """將近期對話轉成文字，供不支援 MessagesPlaceholder 的 prompt 變量使用。"""
+    recent_messages = messages[-max_messages:] if messages else []
+    lines = []
+    for msg in recent_messages:
+        if isinstance(msg, HumanMessage):
+            role = "用戶"
+        elif isinstance(msg, AIMessage):
+            role = "助手"
+        elif isinstance(msg, ToolMessage):
+            role = "工具"
+        else:
+            role = msg.__class__.__name__
+        content = str(getattr(msg, "content", "")).strip()
+        if content:
+            lines.append(f"{role}: {content}")
+    return "\n".join(lines) if lines else "無"
+
+
+def _get_clarify_parameter_message(result: dict) -> str:
+    """兼容舊字段並為常見缺失槽位生成可讀提示。"""
+    message = (
+        result.get("clarify_parameters")
+        or result.get("clarify_parameters")
+        or ""
+    )
+    if message:
+        return str(message).strip()
+
+    missing_slots = result.get("missing_slots") or []
+    if "tracking_number" in missing_slots:
+        return "請提供需要查詢的物流單號。"
+    return ""
+
 
 async def get_manager():
     global intent_manager
@@ -98,85 +153,88 @@ def _build_intent_catalog(manager) -> str:
     return "\n".join(lines)
 
 
-def _fallback_select_final_intents(sub_question_intents: list[tuple[str, str, float]]) -> list[tuple[str, str, float]]:
-    best_per_intent = {}
-    for sq, intent_id, score in sub_question_intents:
-        if intent_id not in best_per_intent or score > best_per_intent[intent_id][2]:
-            best_per_intent[intent_id] = (sq, intent_id, score)
-    return list(best_per_intent.values())
+def _fallback_judge_items(candidate_by_id: dict[str, tuple[str, str, float]]) -> list[dict]:
+    """LLM裁決失敗時保守兜底：每個候選句獨立保留，避免合併造成信息丟失。"""
+    return [
+        {
+            "candidate_ids": [candidate_id],
+            "intent_id": intent_id,
+            "reason": "规则兜底保留",
+        }
+        for candidate_id, (_, intent_id, _) in candidate_by_id.items()
+    ]
 
 
-def _candidate_score(sub_question: str, intent_id: str, candidates: list[tuple[str, str, float]]) -> float:
-    normalized_question = sub_question.strip()
-    for candidate_question, candidate_intent, score in candidates:
-        if candidate_question.strip() == normalized_question and candidate_intent == intent_id:
-            return score
-
-    same_intent_scores = [score for _, candidate_intent, score in candidates if candidate_intent == intent_id]
-    return max(same_intent_scores) if same_intent_scores else 0.5
-
-
-def _resolve_original_sub_question(
-    item: dict,
+def _sanitize_judge_items(
+    raw_items: list,
     candidate_by_id: dict[str, tuple[str, str, float]],
-    original_questions: set[str],
-) -> str:
-    candidate_ids = item.get("candidate_ids")
-    if isinstance(candidate_ids, list) and candidate_ids:
-        parts = []
+    valid_intents: set[str],
+) -> list[dict]:
+    """校驗裁決items，只保留合法candidate_ids與intent_id。"""
+    sanitized_items = []
+    used_ids = set()
+
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+
+        intent_id = str(item.get("intent_id", "")).strip()
+        if not intent_id:
+            continue
+        if valid_intents and intent_id not in valid_intents:
+            logger.warning("LLM返回未知意图，已忽略: %s", intent_id)
+            continue
+
+        candidate_ids = item.get("candidate_ids", [])
+        if not isinstance(candidate_ids, list):
+            continue
+
+        clean_ids = []
         for candidate_id in candidate_ids:
-            candidate = candidate_by_id.get(str(candidate_id).strip())
-            if candidate is not None:
-                parts.append(candidate[0])
-        if parts:
-            return "/".join(parts)
+            cid = str(candidate_id).strip()
+            if cid not in candidate_by_id:
+                logger.warning("LLM返回未知candidate_id，已忽略: %s", cid)
+                continue
+            if cid in used_ids:
+                logger.info("LLM返回重复candidate_id，保留首次结果: %s", cid)
+                continue
+            clean_ids.append(cid)
+            used_ids.add(cid)
 
-    sub_question = str(item.get("sub_question", "")).strip()
-    if sub_question in original_questions:
-        return sub_question
+        if clean_ids:
+            sanitized_items.append({
+                "candidate_ids": clean_ids,
+                "intent_id": intent_id,
+                "reason": str(item.get("reason", "")).strip(),
+            })
 
-    joined_originals = set()
-    ordered_questions = [candidate[0] for candidate in candidate_by_id.values()]
-    for start_index in range(len(ordered_questions)):
-        parts = []
-        for question in ordered_questions[start_index:]:
-            parts.append(question)
-            joined_originals.add("/".join(parts))
-    if sub_question in joined_originals:
-        return sub_question
+    missed_ids = [candidate_id for candidate_id in candidate_by_id if candidate_id not in used_ids]
+    for candidate_id in missed_ids:
+        _, intent_id, _ = candidate_by_id[candidate_id]
+        logger.warning("裁決遗漏candidate_id，使用兜底补回: %s", candidate_id)
+        sanitized_items.append({
+            "candidate_ids": [candidate_id],
+            "intent_id": intent_id,
+            "reason": "裁决遗漏兜底",
+        })
 
-    logger.warning("LLM返回非原句子问题,已忽略: %s", sub_question)
-    return ""
-
-
-def _selected_candidate_intents(item: dict, candidate_by_id: dict[str, tuple[str, str, float]]) -> set[str]:
-    candidate_ids = item.get("candidate_ids")
-    if not isinstance(candidate_ids, list):
-        return set()
-    return {
-        candidate_by_id[str(candidate_id).strip()][1]
-        for candidate_id in candidate_ids
-        if str(candidate_id).strip() in candidate_by_id
-    }
+    return sanitized_items
 
 
 async def _judge_final_sub_questions(
     user_query: str,
-    sub_question_intents: list[tuple[str, str, float]],
+    candidate_by_id: dict[str, tuple[str, str, float]],
     manager,
-) -> list[tuple[str, str, float]]:
-    if not sub_question_intents:
+    summary: str = "无",
+    conversation_history: str = "無",
+) -> list[dict]:
+    if not candidate_by_id:
         return []
     if query_decomposition_judge_prompt is None:
         logger.warning("query_decomposition_judge_prompt 未加载，使用规则兜底")
-        return _fallback_select_final_intents(sub_question_intents)
+        return _fallback_judge_items(candidate_by_id)
 
     valid_intents = set(manager.get_all_intents().keys()) if hasattr(manager, "get_all_intents") else set()
-    candidate_by_id = {
-        f"q{i}": (sub_q, intent_id, score)
-        for i, (sub_q, intent_id, score) in enumerate(sub_question_intents, 1)
-    }
-    original_questions = {sub_q for sub_q, _, _ in sub_question_intents}
     candidate_payload = [
         {
             "candidate_id": candidate_id,
@@ -189,6 +247,8 @@ async def _judge_final_sub_questions(
     chain = query_decomposition_judge_prompt | model
     response = await chain.ainvoke({
         "user_query": user_query,
+        "summary": summary,
+        "conversation_history": conversation_history,
         "intent_catalog": _build_intent_catalog(manager),
         "candidate_json": json.dumps(candidate_payload, ensure_ascii=False, indent=2),
     })
@@ -200,31 +260,10 @@ async def _judge_final_sub_questions(
     if not isinstance(items, list):
         raise ValueError("LLM查询拆解输出缺少items数组")
 
-    final_results = []
-    seen_intents = set()
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        sub_question = _resolve_original_sub_question(item, candidate_by_id, original_questions)
-        intent_id = str(item.get("intent_id", "")).strip()
-        if not sub_question or not intent_id:
-            continue
-        if valid_intents and intent_id not in valid_intents:
-            logger.warning("LLM返回未知意图，已忽略: %s", intent_id)
-            continue
-        selected_intents = _selected_candidate_intents(item, candidate_by_id)
-        if len(selected_intents) > 1:
-            logger.warning("LLM尝试合并不同意图原句，已忽略: %s", selected_intents)
-            continue
-        if intent_id in seen_intents:
-            logger.info("LLM返回重复意图，保留首个结果: %s", intent_id)
-            continue
-        seen_intents.add(intent_id)
-        final_results.append((sub_question, intent_id, _candidate_score(sub_question, intent_id, sub_question_intents)))
-
-    if not final_results:
+    judge_items = _sanitize_judge_items(items, candidate_by_id, valid_intents)
+    if not judge_items:
         raise ValueError("LLM查询拆解输出无有效子问题")
-    return final_results
+    return judge_items
 
 
 def split_user_input(text: str) -> list[str]:
@@ -233,7 +272,7 @@ def split_user_input(text: str) -> list[str]:
     核心逻辑：切句 → 过滤补充句 → 合并残句
     """
     # 1. 按标点切句
-    pattern = r'[。？！?!；;,.]+'
+    pattern = r'[。？！?!；;，.]+'
     parts = [p.strip() for p in re.split(pattern, text) if p.strip()]
 
     # 没切出多句，直接返回原始输入
@@ -266,10 +305,16 @@ def split_user_input(text: str) -> list[str]:
 
 async def decompose_query(state: State) -> State:
     """查询拆解节点 - 直接对用户输入做句子拆分"""
-    latest_message = state["messages"][-1] if state["messages"] else HumanMessage(content="")
+    messages = state.get("messages", [])
+    latest_message = messages[-1] if messages else HumanMessage(content="")
     user_query = latest_message.content
+    summary = state.get("summary", "无")
+    conversation_history = _format_conversation_history(messages)
 
-    logger.info(f"Decomposer Node: 分析查询 - {user_query}")
+    logger.info(
+        "Decomposer Node: 分析查询 - %s, summary: %s, 历史消息数: %s",
+        user_query, summary, len(messages)
+    )
 
     try:
         # 第一步：直接对用户输入切句，不再检索向量库
@@ -285,26 +330,34 @@ async def decompose_query(state: State) -> State:
             sub_question_intents.append((sent, intent_id, score))
             logger.info(f"  子问题{i}: {sent} -> 意图: {intent_id} (相似度: {score:.4f})")
 
-        # 第三步：由LLM基于候选子问题和意图目录裁决合并子问题
+        candidate_by_id = {
+            f"q{i}": (sub_q, intent_id, score)
+            for i, (sub_q, intent_id, score) in enumerate(sub_question_intents, 1)
+        }
+
+        # 第三步：由LLM基于候选子问题和意图目录裁决保留/去重/合并关系
         try:
-            final_intents = await _judge_final_sub_questions(user_query, sub_question_intents, manager)
-            logger.info("LLM查询拆解裁决完成: %s", final_intents)
+            judge_items = await _judge_final_sub_questions(
+                user_query,
+                candidate_by_id,
+                manager,
+                summary=summary,
+                conversation_history=conversation_history,
+            )
+            logger.info("LLM查询拆解裁决完成: %s", judge_items)
         except Exception as llm_error:
             logger.error("LLM查询拆解裁决失败，使用规则兜底: %s", llm_error)
-            final_intents = _fallback_select_final_intents(sub_question_intents)
+            judge_items = _fallback_judge_items(candidate_by_id)
 
-        merged_questions = [item[0] for item in final_intents]
-
-        is_complex = len(merged_questions) > 1
-        logger.info(f"LLM意图合并结果: {len(merged_questions)} 个合并子问题")
-        for i, sq in enumerate(merged_questions, 1):
-            logger.info(f"  合并子问题{i}: {sq}")
+        logger.info("查询拆解完成: %s 个候选，%s 个裁决item，后续交由 llm_rewrite 展开重写", len(candidate_by_id), len(judge_items))
 
         return {
-            "sub_questions": merged_questions,
-            "is_complex_query": is_complex,
-            "multi_intent_results": final_intents,
-            "decompose_skipped": False
+            "sub_questions": [item[0] for item in sub_question_intents],
+            "is_complex_query": len(sub_question_intents) > 1,
+            "multi_intent_results": sub_question_intents,
+            "judge_items": judge_items,
+            "candidate_by_id": candidate_by_id,
+            "decompose_skipped": False,
         }
 
     except Exception as e:
@@ -313,60 +366,161 @@ async def decompose_query(state: State) -> State:
             "sub_questions": [user_query],
             "is_complex_query": False,
             "multi_intent_results": [],
+            "judge_items": [],
+            "candidate_by_id": {},
             "decompose_skipped": True
         }
 
 
-async def integrate_sub_questions(state: State) -> State:
-    """整合子问题节点：将LLM合并后的子问题按/切回最终子问题。"""
-    merged_intent_results = state.get("multi_intent_results", [])
-    if not merged_intent_results:
-        sub_questions = state.get("sub_questions", [])
-        logger.warning("整合子问题未收到LLM合并结果/透传现有子问题: %s", sub_questions)
-        return {
-            "sub_questions": sub_questions,
-            "is_complex_query": len(sub_questions) > 1,
-            "multi_intent_results": merged_intent_results,
-        }
-
-    final_intent_results = []
-
-    logger.info(f"整合子问题: 处理 {len(merged_intent_results)} 个LLM合并结果")
-    for merged_index, (sub_q, intent_id, score) in enumerate(merged_intent_results, 1):
-        parts = [part.strip() for part in str(sub_q).split("/") if part.strip()]
-        if not parts:
+def _expand_judge_candidates(
+    judge_items: list[dict],
+    candidate_by_id: dict[str, tuple[str, str, float]],
+) -> list[dict]:
+    candidates = []
+    for item in judge_items:
+        intent_id = str(item.get("intent_id", "")).strip()
+        candidate_ids = item.get("candidate_ids", [])
+        if not intent_id or not isinstance(candidate_ids, list):
             continue
 
-        logger.info(f"  合并子问题{merged_index}: {sub_q} -> 拆分为 {len(parts)} 个最终子问题")
-        for part in parts:
-            final_intent_results.append((part, intent_id, score))
+        for candidate_id in candidate_ids:
+            cid = str(candidate_id).strip()
+            if cid not in candidate_by_id:
+                logger.warning("llm_rewrite 跳过未知candidate_id: %s", cid)
+                continue
 
-    if not final_intent_results:
-        logger.warning("整合子问题无有效结果/保留原始拆解结果")
-        final_intent_results = merged_intent_results
+            original, original_intent_id, score = candidate_by_id[cid]
+            candidates.append({
+                "candidate_id": cid,
+                "original": original,
+                "intent_id": intent_id or original_intent_id,
+                "score": score,
+            })
 
-    sub_questions = [item[0] for item in final_intent_results]
-    is_complex = len(sub_questions) > 1
+    return candidates
 
-    logger.info(f"整合子问题完成: {len(sub_questions)} 个最终子问题")
-    for i, (sub_q, intent_id, score) in enumerate(final_intent_results, 1):
-        logger.info(f"  最终子问题{i}: {sub_q} -> 意图: {intent_id} (相似度: {score:.4f})")
+
+def _fallback_rewrite_results(candidates: list[dict]) -> list[tuple[str, str, float]]:
+    return [
+        (candidate["original"], candidate["intent_id"], candidate.get("score", 1.0))
+        for candidate in candidates
+        if candidate.get("original") and candidate.get("intent_id")
+    ]
+
+
+async def llm_rewrite(state: State) -> State:
+    """按裁決items展開candidate_ids，將每個原句獨立改寫成完整自然句。"""
+    judge_items = state.get("judge_items", [])
+    candidate_by_id = state.get("candidate_by_id", {})
+    summary = state.get("summary", "无")
+    conversation_history = _format_conversation_history(state.get("messages", []))
+
+    if not judge_items or not candidate_by_id:
+        logger.warning("llm_rewrite 缺少judge_items或candidate_by_id，透传拆解结果")
+        fallback_results = state.get("multi_intent_results", [])
+        return {
+            "sub_questions": [item[0] for item in fallback_results],
+            "is_complex_query": len(fallback_results) > 1,
+            "multi_intent_results": fallback_results,
+        }
+
+    candidates = _expand_judge_candidates(judge_items, candidate_by_id)
+    if not candidates:
+        logger.warning("llm_rewrite 展开后无候选，透传拆解结果")
+        fallback_results = state.get("multi_intent_results", [])
+        return {
+            "sub_questions": [item[0] for item in fallback_results],
+            "is_complex_query": len(fallback_results) > 1,
+            "multi_intent_results": fallback_results,
+        }
+
+    if query_rewrite_prompt is None:
+        logger.warning("query_rewrite_prompt 未加载，使用原句兜底")
+        final_results = _fallback_rewrite_results(candidates)
+    else:
+        manager = await get_manager()
+        rewrite_payload = [
+            {
+                "candidate_id": candidate["candidate_id"],
+                "original": candidate["original"],
+                "intent_id": candidate["intent_id"],
+            }
+            for candidate in candidates
+        ]
+
+        try:
+            chain = query_rewrite_prompt | model
+            response = await chain.ainvoke({
+                "summary": summary,
+                "conversation_history": conversation_history,
+                "intent_catalog": _build_intent_catalog(manager),
+                "candidates_json": json.dumps(rewrite_payload, ensure_ascii=False, indent=2),
+            })
+            content = response.content if hasattr(response, "content") else str(response)
+            logger.info("llm_rewrite 原始输出: %s", content)
+            payload = _extract_json_object(content)
+            rewritten_items = payload.get("rewritten", [])
+            if not isinstance(rewritten_items, list):
+                raise ValueError("query_rewrite 输出缺少rewritten数组")
+
+            score_by_original_intent = {
+                (candidate["original"], candidate["intent_id"]): candidate.get("score", 1.0)
+                for candidate in candidates
+            }
+            final_results = []
+            for item in rewritten_items:
+                if not isinstance(item, dict):
+                    continue
+                rewritten = str(item.get("rewritten", "")).strip()
+                intent_id = str(item.get("intent_id", "")).strip()
+                original = str(item.get("original", "")).strip()
+                if rewritten and intent_id:
+                    score = score_by_original_intent.get((original, intent_id), 1.0)
+                    final_results.append((rewritten, intent_id, score))
+
+            if not final_results:
+                raise ValueError("query_rewrite 输出无有效改写结果")
+        except Exception as rewrite_error:
+            logger.error("llm_rewrite 失败，使用原句兜底: %s", rewrite_error)
+            final_results = _fallback_rewrite_results(candidates)
+
+    sub_questions = [result[0] for result in final_results]
+    logger.info("llm_rewrite 完成: %s 个子问题", len(sub_questions))
+    for i, (sub_q, intent_id, score) in enumerate(final_results, 1):
+        logger.info("  最终子问题%d: %s -> 意图: %s (相似度: %.4f)", i, sub_q, intent_id, score)
 
     return {
         "sub_questions": sub_questions,
-        "is_complex_query": is_complex,
-        "multi_intent_results": final_intent_results,
+        "multi_intent_results": final_results,
+        "is_complex_query": len(sub_questions) > 1,
     }
 
 
 async def retrieve_knowledge_multi(state: State) -> State:
-    """多意图知识库检索节点
-
+    """
+    多意图知识库检索节点
     对拆解后的每个子问题分别进行意图匹配和知识库检索
     """
-    # 获取子问题和多意图结果
-    sub_questions = state.get("sub_questions", [])
-    multi_intent_results = state.get("multi_intent_results", [])
+    # 只检索 task_dispatcher 标记为未被工具解决的子问题。
+    processed_results = state.get("processed_results", [])
+    knowledge_intent_results = [
+        (
+            result["sub_question"],
+            result.get("intent_id"),
+            result.get("intent_score", 0.0),
+        )
+        for result in processed_results
+        if not result.get("is_tool", False)
+        and not result.get("needs_clarification", False)
+        and result.get("sub_question")
+    ]
+
+    # 兼容未经过 task_dispatcher 的旧调用路径；如果已有processed_results，
+    # 但没有未被工具解决的项，则不能回退到全量multi_intent_results。
+    if not knowledge_intent_results and not processed_results:
+        knowledge_intent_results = state.get("multi_intent_results", [])
+
+    sub_questions = [item[0] for item in knowledge_intent_results]
 
     if not sub_questions:
         # 如果没有子问题，直接返回空结果
@@ -374,16 +528,16 @@ async def retrieve_knowledge_multi(state: State) -> State:
             "knowledge_results": [],
             "highest_score": 0.0,
             "intent_id": None,
-            "multi_intent_results": []
+            "multi_intent_results": state.get("multi_intent_results", [])
         }
 
     logger.info(f"多意图检索: 处理 {len(sub_questions)} 个子问题")
 
     multi_results = []
 
-    # 使用从state中获取的多意图结果
-    for i, (sub_q, intent_id, score) in enumerate(multi_intent_results):
-        logger.info(f"处理子问题 {i+1}/{len(multi_intent_results)}: {sub_q}")
+    # 只使用未被工具解决的子问题结果
+    for i, (sub_q, intent_id, score) in enumerate(knowledge_intent_results):
+        logger.info(f"处理知识库子问题 {i+1}/{len(knowledge_intent_results)}: {sub_q}")
         logger.info(f"子问题意图匹配: {intent_id} (相似度: {score:.4f})")
 
         # 跳过D1意图的检索
@@ -463,7 +617,8 @@ async def retrieve_knowledge_multi(state: State) -> State:
         "highest_score": highest_score,
         "intent_id": primary_intent,
         "current_topic": primary_intent,  # 添加current_topic字段，与intent_id保持一致
-        "multi_intent_results": multi_results
+        "multi_intent_results": state.get("multi_intent_results", []),
+        "knowledge_multi_results": multi_results
     }
 
 async def retrieve_knowledge(state: State) -> State:
@@ -473,16 +628,31 @@ async def retrieve_knowledge(state: State) -> State:
 
     logger.info(f"检索知识库: {latest_message.content}")
 
-    # 获取意图ID
-    intent_id = state.get("intent_id")
-    logger.info(f"使用意图ID: {intent_id} 进行检索")
-
-    # 获取需要查询知识库的子问题
+    # 获取需要查询知识库的子问题；工具已解决的子问题不再检索。
     processed_results = state.get("processed_results", [])
-    knowledge_questions = [result["sub_question"] for result in processed_results if not result.get("is_tool", False)]
+    knowledge_targets = [
+        result for result in processed_results
+        if not result.get("is_tool", False)
+        and not result.get("needs_clarification", False)
+        and result.get("sub_question")
+    ]
 
-    # 如果有需要查询知识库的子问题，使用第一个子问题进行检索
-    query = knowledge_questions[0] if knowledge_questions else latest_message.content
+    if knowledge_targets:
+        first_target = knowledge_targets[0]
+        query = first_target["sub_question"]
+        intent_id = first_target.get("intent_id") or state.get("intent_id")
+    elif processed_results:
+        logger.info("检索节点未收到需要知识库处理的子问题，返回空知识结果")
+        return {
+            "knowledge_results": [],
+            "highest_score": 0.0,
+            "intent_id": state.get("intent_id")
+        }
+    else:
+        query = latest_message.content
+        intent_id = state.get("intent_id")
+
+    logger.info(f"使用意图ID: {intent_id} 进行检索")
 
     # 异步搜索知识库（不使用过滤表达式，避免字段不存在的问题）
     loop = asyncio.get_event_loop()
@@ -554,6 +724,9 @@ async def direct_answer(state: State) -> State:
             if result.get("is_tool"):
                 if result.get("result"):
                     tool_results_context += f"- 子问题: {result['sub_question']}\n  结果: {result['result']}\n"
+                    if result.get("raw_tool_results"):
+                        raw_results = "\n  原始工具返回: ".join(result["raw_tool_results"])
+                        tool_results_context += f"  原始工具返回: {raw_results}\n"
                 elif result.get("error"):
                     tool_results_context += f"- 子问题: {result['sub_question']}\n  错误: {result['error']}\n"
 
@@ -586,7 +759,7 @@ async def direct_answer(state: State) -> State:
         logger.info(f"======直接回答生成: {content}...")
 
         return {
-            "messages": [ai_message],
+            "messages": state["messages"] + [ai_message],
             "history": state.get("history", []) + [{"user": user_message_content, "assistant": content, "topic": state.get("current_topic", "")}]
         }
     except Exception as e:
@@ -600,65 +773,81 @@ async def direct_answer(state: State) -> State:
         }
 
 async def clarify_question(state: State) -> State:
-    """澄清提问节点"""
-    # 构建提示
-    if state["knowledge_results"]:
+    """澄清提问节点（含缺参澄清）"""
+    processed_results = state.get("processed_results", [])
+    messages = state.get("messages", [])
+
+    # 收集缺参信息，去重保序
+    clarification_messages = list(dict.fromkeys(
+        _get_clarify_parameter_message(result)
+        for result in processed_results
+        if result.get("needs_clarification") and _get_clarify_parameter_message(result)
+    ))
+    missing_params_context = "\n".join(clarification_messages) if clarification_messages else "无"
+
+    # 提取知識庫相關問題
+    if state.get("knowledge_results"):
         top_knowledge = state["knowledge_results"][0][0]
-        # 提取问题部分
         question_part = top_knowledge.split("\n")[0].replace("问题: ", "")
     else:
-        question_part = "相关问题"
+        question_part = "无"
 
-    # 获取用户问题
-    user_question = state["messages"][-1].content if state["messages"] else ""
+    # 提取用戶原始問題
+    user_question = messages[-1].content if messages else ""
+    conversation_history = _format_conversation_history(messages)
     summary = state.get("summary", "无")
 
-    logger.info(f"进入澄清提问节点，用户问题: {user_question}, 相关问题: {question_part}")
-
-    # 提取用户消息内容
+    # 提取用戶消息內容（用於寫入 history）
     user_message_content = ""
-    for msg in reversed(state["messages"]):
+    for msg in reversed(messages):
         if isinstance(msg, HumanMessage):
             user_message_content = msg.content
             break
 
+    logger.info(
+        "进入澄清提问节点，用户问题: %s, 缺参信息: %s, 相关问题: %s, 历史消息数: %s",
+        user_question, missing_params_context, question_part, len(messages)
+    )
+
     try:
-        # 使用 prompt.invoke 调用 LLM，使用流式输出
         chain = clarify_question_prompt | model
         content = ""
         async for chunk in chain.astream({
+            "messages": messages,
             "user_question": user_question,
+            "conversation_history": conversation_history,
+            "summary": summary,
             "related_question": question_part,
-            "summary": summary
+            "missing_params_context": missing_params_context,
         }):
-            # 从AIMessageChunk中提取content属性
             content += chunk.content
 
-        # 添加到消息历史
         ai_message = AIMessage(content=content)
-
-        logger.info(f"======澄清提问生成: {content}")
+        logger.info("======澄清提问生成: %s", content)
 
         return {
             "messages": [ai_message],
-            "history": state.get("history", []) + [{"user": user_message_content, "assistant": content, "topic": state.get("current_topic", "")}]
+            "history": state.get("history", []) + [{
+                "user": user_message_content,
+                "assistant": content,
+                "topic": state.get("current_topic", "")
+            }]
         }
     except Exception as e:
-        logger.error(f"澄清提问生成失败: {str(e)}")
-        # 发生异常时返回兜底回复
+        logger.error("澄清提问生成失败: %s", str(e))
         error_message = "抱歉，我在生成回答时遇到了问题，请稍后再试。"
         ai_message = AIMessage(content=error_message)
         return {
             "messages": [ai_message],
-            "history": state.get("history", []) + [{"user": user_message_content, "assistant": error_message, "topic": state.get("current_topic", "")}]
+            "history": state.get("history", []) + [{
+                "user": user_message_content,
+                "assistant": error_message,
+                "topic": state.get("current_topic", "")
+            }]
         }
 
 async def chat_response(state: State) -> State:
     """闲聊回复节点"""
-    # 获取最新消息
-    latest_message = state["messages"][-1] if state["messages"] else HumanMessage(content="")
-
-    logger.info(f"进入闲聊回复节点，用户消息: {latest_message.content}")
 
     # 提取用户消息内容
     user_message_content = ""
@@ -666,13 +855,18 @@ async def chat_response(state: State) -> State:
         if isinstance(msg, HumanMessage):
             user_message_content = msg.content
             break
+    
+    summary = state.get("summary", "无")
+    logger.info(f"进入闲聊回复节点，用户消息: {user_message_content}")
+
 
     try:
         # 使用从配置文件加载的闲聊提示模板
         chain = chat_response_prompt | model
         content = ""
         async for chunk in chain.astream({
-            "user_question": latest_message.content
+            "user_question": user_message_content,
+            "summary": summary
         }):
             # 从AIMessageChunk中提取content属性
             content += chunk.content
@@ -684,7 +878,10 @@ async def chat_response(state: State) -> State:
 
         return {
             "messages": [ai_message],
-            "history": state.get("history", []) + [{"user": user_message_content, "assistant": content, "topic": state.get("current_topic", "")}]
+            "history": state.get("history", []) + [{
+                "user": user_message_content, 
+                "assistant": content, 
+                "topic": state.get("current_topic", "")}]
         }
     except Exception as e:
         logger.error(f"闲聊回复生成失败: {str(e)}")
@@ -693,7 +890,10 @@ async def chat_response(state: State) -> State:
         ai_message = AIMessage(content=error_message)
         return {
             "messages": [ai_message],
-            "history": state.get("history", []) + [{"user": user_message_content, "assistant": error_message, "topic": state.get("current_topic", "")}]
+            "history": state.get("history", []) + [{
+                "user": user_message_content, 
+                "assistant": error_message, 
+                "topic": state.get("current_topic", "")}]
         }
 
 async def fallback_response(state: State) -> State:
@@ -797,69 +997,328 @@ async def increment_rounds(state: State) -> State:
     current_rounds = state.get("conversation_rounds", 0)
     return {"conversation_rounds": current_rounds + 1}
 
+
+def _extract_tracking_numbers(text: str) -> list[str]:
+    """提取常見物流/訂單號，用於本輪工具結果復用。"""
+    if not text:
+        return []
+    pattern = r"(?<![A-Za-z0-9])(?:\d{5,}|[A-Za-z]{1,4}\d{3,}[A-Za-z0-9]*)(?![A-Za-z0-9])"
+    return re.findall(pattern, str(text))
+
+
+def _needs_logistics_clarification(sub_question: str, intent_id: str) -> bool:
+    """物流查詢缺少單號時，提前進入澄清分支，避免誤檢索或編造參數。"""
+    if intent_id != "A3":
+        return False
+
+    logistics_keywords = ["物流", "快递", "快遞", "包裹", "运到", "運到", "运输", "運輸", "送达", "送達", "到哪"]
+    has_logistics_intent = any(keyword in sub_question for keyword in logistics_keywords)
+    has_tracking_number = bool(_extract_tracking_numbers(sub_question))
+
+    return has_logistics_intent and not has_tracking_number
+
+
+def _tool_history_from_processed_results(processed_results: list[dict]) -> list[dict]:
+    history = []
+    for result in processed_results:
+        if not result.get("is_tool"):
+            continue
+
+        raw_tool_results = result.get("raw_tool_results") or []
+        tool_calls = result.get("tool_calls") or []
+        tracking_numbers = set(_extract_tracking_numbers(result.get("sub_question", "")))
+        for tool_call in tool_calls:
+            args = tool_call.get("args") if isinstance(tool_call, dict) else {}
+            tracking_number = (args or {}).get("tracking_number")
+            if tracking_number:
+                tracking_numbers.add(str(tracking_number))
+        for raw_result in raw_tool_results:
+            tracking_numbers.update(_extract_tracking_numbers(raw_result))
+
+        history.append({
+            "sub_question": result.get("sub_question", ""),
+            "tracking_numbers": sorted(tracking_numbers),
+            "result": result.get("result", ""),
+            "raw_tool_results": raw_tool_results,
+            "tool_calls": tool_calls,
+        })
+
+    return history
+
+
+def _build_tool_memory(state: State) -> list[dict]:
+    """合併State中的短期工具記憶與本輪已處理結果。"""
+    memory = []
+    memory.extend(state.get("tool_execution_history", []) or [])
+    memory.extend(_tool_history_from_processed_results(state.get("processed_results", []) or []))
+    return _dedupe_tool_memory(memory)
+
+
+def _dedupe_tool_memory(memory: list[dict]) -> list[dict]:
+    deduped = []
+    seen = set()
+    for item in memory:
+        tracking_numbers = tuple(item.get("tracking_numbers") or [])
+        raw_tool_results = tuple(item.get("raw_tool_results") or [])
+        key = (tracking_numbers, raw_tool_results)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+    return deduped
+
+
+def _find_reusable_tool_result(sub_question: str, tool_memory: list[dict]) -> dict | None:
+    tracking_numbers = set(_extract_tracking_numbers(sub_question))
+    if not tracking_numbers:
+        return None
+
+    for item in reversed(tool_memory):
+        item_numbers = set(item.get("tracking_numbers") or [])
+        if tracking_numbers & item_numbers:
+            return item
+
+    return None
+
+
+def _find_single_current_logistics_result(
+    sub_question: str,
+    intent_id: str,
+    current_tool_memory: list[dict],
+) -> dict | None:
+    """本輪只有一個物流查詢結果時，允許A3殘句復用該結果。"""
+    if intent_id != "A3" or _extract_tracking_numbers(sub_question):
+        return None
+
+    logistics_keywords = ["物流", "快递", "快遞", "包裹", "多久", "到", "送达", "送達"]
+    if not any(keyword in sub_question for keyword in logistics_keywords):
+        return None
+
+    current_tracking_numbers = set()
+    for item in current_tool_memory:
+        current_tracking_numbers.update(item.get("tracking_numbers") or [])
+
+    if len(current_tracking_numbers) != 1 or len(current_tool_memory) != 1:
+        return None
+
+    return current_tool_memory[0]
+
+
+def _tool_call_tracking_number(tool_call: dict) -> str:
+    args = tool_call.get("args") if isinstance(tool_call, dict) else {}
+    if not isinstance(args, dict):
+        return ""
+    return str(args.get("tracking_number", "")).strip()
+
+
+async def _run_stateful_react_tool_chain(
+    state: State,
+    intent_results: list[tuple[str, str, float]],
+) -> dict:
+    """以整輪子問題為單位執行有狀態ReAct工具調度。"""
+    existing_tool_memory = _build_tool_memory(state)
+    payload = {
+        "tool_memory": existing_tool_memory,
+        "sub_questions": [
+            {
+                "index": index,
+                "sub_question": sub_q,
+                "intent_id": intent_id,
+                "intent_score": score,
+            }
+            for index, (sub_q, intent_id, score) in enumerate(intent_results, 1)
+        ],
+    }
+
+    logger.info(
+        "Stateful ReAct tool chain start: sub_questions=%s, memory_items=%s",
+        len(intent_results),
+        len(existing_tool_memory),
+    )
+    result = await react_tool_agent.ainvoke({
+        "messages": [
+            HumanMessage(
+                content=(
+                    "請根據以下JSON進行本輪工具調度。"
+                    "先查看tool_memory，避免重複查詢已存在的單號；"
+                    "再針對sub_questions整體規劃需要查詢的工具。\n"
+                    f"{json.dumps(payload, ensure_ascii=False, indent=2)}"
+                )
+            )
+        ]
+    })
+    messages = result.get("messages", []) if isinstance(result, dict) else []
+
+    tool_messages = [message for message in messages if isinstance(message, ToolMessage)]
+    ai_messages = [message for message in messages if isinstance(message, AIMessage)]
+
+    tool_calls = []
+    for ai_message in ai_messages:
+        tool_calls.extend(getattr(ai_message, "tool_calls", []) or [])
+
+    tool_message_by_id = {
+        getattr(message, "tool_call_id", ""): str(message.content)
+        for message in tool_messages
+    }
+    executed_tools = []
+    for tool_call in tool_calls:
+        tool_call_id = tool_call.get("id", "")
+        raw_result = tool_message_by_id.get(tool_call_id, "")
+        tracking_number = _tool_call_tracking_number(tool_call)
+        tracking_numbers = set()
+        if tracking_number:
+            tracking_numbers.add(tracking_number)
+        tracking_numbers.update(_extract_tracking_numbers(raw_result))
+        executed_tools.append({
+            "tool_call": tool_call,
+            "tracking_number": tracking_number,
+            "tracking_numbers": sorted(tracking_numbers),
+            "raw_result": raw_result,
+        })
+
+    final_answer = str(ai_messages[-1].content) if ai_messages else ""
+    raw_tool_results = [item["raw_result"] for item in executed_tools if item.get("raw_result")]
+
+    logger.info(
+        "Stateful ReAct tool chain done: tool_calls=%s, tool_results=%s",
+        tool_calls,
+        raw_tool_results,
+    )
+
+    return {
+        "messages": messages,
+        "final_answer": final_answer,
+        "tool_calls": tool_calls,
+        "raw_tool_results": raw_tool_results,
+        "executed_tools": executed_tools,
+        "tool_memory": existing_tool_memory,
+    }
+
 async def task_dispatcher(state: State) -> State:
     """任务分发节点（分拣中心）
 
-    1. 遍历子问题列表
-    2. 对每个子问题查TOOL_MAP：命中则调API
-    3. 没命中：查向量库
-    4. 收集所有结果
+    1. 收集本轮所有子问题
+    2. 一次性调用有状态 ReAct agent 做整体工具调度
+    3. 将工具结果按物流单号回填到对应子问题，重复单号复用结果
+    4. 未被工具解决的子问题交给知识库
     """
     # 获取子问题和它们的意图信息
     multi_intent_results = state.get("multi_intent_results", [])
     sub_questions = state.get("sub_questions", [])
 
+    if not multi_intent_results and sub_questions:
+        manager = await get_manager()
+        multi_intent_results = []
+        for sub_q in sub_questions:
+            intent_id, score = await manager.match_intent(sub_q)
+            multi_intent_results.append((sub_q, intent_id, score))
+
     logger.info(f"任务分发：处理 {len(sub_questions)} 个子问题")
 
-    # 收集每个子问题的处理结果
     processed_results = []
+    existing_tool_memory = _build_tool_memory(state)
+    react_batch_result = {
+        "executed_tools": [],
+        "tool_calls": [],
+        "raw_tool_results": [],
+        "final_answer": "",
+        "tool_memory": existing_tool_memory,
+    }
 
-    # 遍历子问题
+    dispatch_intent_results = [
+        item for item in multi_intent_results
+        if item[1] not in {"D1", "D2"}
+        and not _needs_logistics_clarification(item[0], item[1])
+    ]
+    if dispatch_intent_results:
+        try:
+            react_batch_result = await _run_stateful_react_tool_chain(state, dispatch_intent_results)
+        except Exception as e:
+            logger.error("Stateful ReAct 工具鏈路失敗，全部轉知識庫: %s", e)
+
+    executed_tools = react_batch_result.get("executed_tools", [])
+    tool_memory = [*existing_tool_memory]
+    current_tool_memory = []
+    for executed_tool in executed_tools:
+        tool_call = executed_tool.get("tool_call", {})
+        raw_result = executed_tool.get("raw_result", "")
+        if not raw_result:
+            continue
+        memory_item = {
+            "sub_question": "",
+            "tracking_numbers": executed_tool.get("tracking_numbers", []),
+            "result": raw_result,
+            "raw_tool_results": [raw_result],
+            "tool_calls": [tool_call],
+        }
+        tool_memory.append(memory_item)
+        current_tool_memory.append(memory_item)
+
     for i, (sub_q, intent_id, score) in enumerate(multi_intent_results):
         logger.info(f"处理子问题 {i+1}/{len(multi_intent_results)}: {sub_q} (意图: {intent_id}, 相似度: {score:.4f})")
 
-        # 检查是否为Tool意图
-        tool = get_tool_by_intent(intent_id)
-        if tool:
-            logger.info(f"意图 {intent_id} 匹配到工具，执行工具调用")
-
-            try:
-                # 从子问题中提取物流单号
-                # 这里简化处理，实际项目中可能需要更复杂的解析
-                tracking_number = sub_q.strip()
-
-                # 执行工具
-                result = tool.execute(tracking_number=tracking_number)
-                logger.info(f"工具执行结果: {result}")
-
-                # 记录工具执行结果
-                processed_results.append({
-                    "sub_question": sub_q,
-                    "intent_id": intent_id,
-                    "is_tool": True,
-                    "result": result
-                })
-            except Exception as e:
-                logger.error(f"工具执行失败: {str(e)}")
-                # 工具执行失败时，记录错误信息
-                processed_results.append({
-                    "sub_question": sub_q,
-                    "intent_id": intent_id,
-                    "is_tool": True,
-                    "error": str(e)
-                })
-        else:
-            logger.info(f"意图 {intent_id} 未匹配到工具，需要查询知识库")
-            # 记录需要查询知识库的子问题
+        if intent_id in {"D1", "D2"}:
+            logger.info(f"意图 {intent_id} 为特殊意图，跳过工具判断")
             processed_results.append({
                 "sub_question": sub_q,
                 "intent_id": intent_id,
+                "intent_score": score,
                 "is_tool": False
             })
+            continue
+
+        if _needs_logistics_clarification(sub_q, intent_id):
+            logger.info("物流查询缺少tracking_number，进入澄清: %s", sub_q)
+            processed_results.append({
+                "sub_question": sub_q,
+                "intent_id": intent_id,
+                "intent_score": score,
+                "is_tool": False,
+                "needs_clarification": True,
+                "missing_slots": ["tracking_number"],
+                "clarify_parameters": "請提供需要查詢的物流單號。",
+            })
+            continue
+
+        reusable_result = (
+            _find_reusable_tool_result(sub_q, tool_memory)
+            or _find_single_current_logistics_result(sub_q, intent_id, current_tool_memory)
+        )
+        if reusable_result:
+            logger.info("子问题复用已查询工具结果: %s", sub_q)
+            processed_results.append({
+                "sub_question": sub_q,
+                "intent_id": intent_id,
+                "intent_score": score,
+                "is_tool": True,
+                "result": reusable_result.get("result", ""),
+                "tool_calls": reusable_result.get("tool_calls", []),
+                "raw_tool_results": reusable_result.get("raw_tool_results", []),
+                "reused_tool_result": True,
+            })
+            continue
+
+        logger.info(f"子問題未觸發工具，需要查詢知識庫: {sub_q}")
+        processed_results.append({
+            "sub_question": sub_q,
+            "intent_id": intent_id,
+            "intent_score": score,
+            "is_tool": False
+        })
+
+    primary_intent = None
+    for result in processed_results:
+        candidate_intent = result.get("intent_id")
+        if candidate_intent not in {"D1", "D2"}:
+            primary_intent = candidate_intent
+            break
+    if primary_intent is None and multi_intent_results:
+        primary_intent = multi_intent_results[0][1]
 
     # 构建返回结果
     return {
         "processed_results": processed_results,
-        "intent_id": multi_intent_results[0][1] if multi_intent_results else None,
-        "current_topic": multi_intent_results[0][1] if multi_intent_results else None
+        "tool_execution_history": _dedupe_tool_memory(tool_memory),
+        "intent_id": primary_intent,
+        "current_topic": primary_intent
     }
