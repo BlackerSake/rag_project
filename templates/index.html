@@ -39,6 +39,10 @@
     </div>
     <script>
         let threadId = "default";
+        marked.setOptions({
+            gfm: true,
+            breaks: false
+        });
         
         // 页面加载时添加时间戳
         document.addEventListener('DOMContentLoaded', function() {
@@ -96,7 +100,7 @@
                             if (done) {
                                 // 处理剩余的缓冲内容
                                 if (buffer) {
-                                    processBuffer(buffer);
+                                    processBuffer(true);
                                 }
                                 return;
                             }
@@ -107,8 +111,7 @@
                             // 定期更新UI
                             const now = Date.now();
                             if (now - lastUpdateTime > updateInterval) {
-                                processBuffer(buffer);
-                                buffer = '';
+                                processBuffer(false);
                                 lastUpdateTime = now;
                             }
                             
@@ -119,20 +122,45 @@
                         });
                     }
                     
-                    function processBuffer(data) {
-                        // 分割并处理SSE格式的数据
-                        const lines = data.split('\n');
-                        for (const line of lines) {
-                            if (line.startsWith('data: ')) {
-                                const content = line.substring(6).trim();
-                                if (content && content !== '[DONE]') {
-                                    fullContent += content;
-                                }
-                            }
+                    function processBuffer(flush) {
+                        let boundaryIndex;
+                        while ((boundaryIndex = buffer.indexOf('\n\n')) !== -1) {
+                            const eventBlock = buffer.slice(0, boundaryIndex);
+                            buffer = buffer.slice(boundaryIndex + 2);
+                            handleSseEvent(eventBlock);
                         }
+
+                        if (flush && buffer.trim()) {
+                            handleSseEvent(buffer);
+                            buffer = '';
+                        }
+
                         if (fullContent) {
                             contentDiv.innerHTML = marked.parse(fullContent);
                             chatMessages.scrollTop = chatMessages.scrollHeight;
+                        }
+                    }
+
+                    function handleSseEvent(eventBlock) {
+                        const dataLines = eventBlock
+                            .split('\n')
+                            .filter(line => line.startsWith('data: '))
+                            .map(line => line.slice(6));
+
+                        if (!dataLines.length) {
+                            return;
+                        }
+
+                        const payload = dataLines.join('\n');
+                        if (payload === '[DONE]') {
+                            return;
+                        }
+
+                        try {
+                            fullContent += JSON.parse(payload);
+                        } catch (error) {
+                            console.warn('Failed to parse SSE payload:', payload, error);
+                            fullContent += payload;
                         }
                     }
                     

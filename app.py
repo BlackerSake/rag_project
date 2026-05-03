@@ -1,4 +1,5 @@
 import os
+import json
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
@@ -98,7 +99,7 @@ async def chat_stream(request: ChatRequest): # 改为 async
                         if node in ["direct_answer", "clarify_question", "fallback_response", "chat_response"]:
                             content = event["data"]["chunk"].content
                             if content:
-                                yield f"data: {content}\n\n"
+                                yield f"data: {json.dumps(content, ensure_ascii=False)}\n\n"
                 
                 # 发送结束标记
                 yield "data: [DONE]\n\n"
@@ -108,7 +109,7 @@ async def chat_stream(request: ChatRequest): # 改为 async
                 return
             except Exception as e:
                 logger.error(f"流式生成异常: {str(e)}")
-                yield f"data: 抱歉，流式传输出现异常，请稍后再试。\n\n"
+                yield f"data: {json.dumps('抱歉，流式传输出现异常，请稍后再试。', ensure_ascii=False)}\n\n"
                 yield "data: [DONE]\n\n"
         
         return StreamingResponse(event_generator(), media_type="text/event-stream")
