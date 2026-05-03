@@ -188,6 +188,28 @@ main {
     color: #666;
 }
 
+.message-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.75rem 0;
+    overflow: hidden;
+    border-radius: 8px;
+    font-size: 0.95rem;
+}
+
+.message-content th,
+.message-content td {
+    border: 1px solid rgba(29, 29, 31, 0.12);
+    padding: 0.55rem 0.75rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.message-content th {
+    background-color: #F2F2F2;
+    font-weight: 600;
+}
+
 /* 输入区域样式 */
 .chat-input {
     position: fixed;
