@@ -13,6 +13,7 @@ elasticsearch
 langchain_milvus
 langchain_community
 langchain_text_splitters
+langchain-mcp-adapters
 dashscope
 PyYAML
 pytest
