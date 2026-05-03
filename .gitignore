@@ -28,3 +28,6 @@ rdb_data_meta_kv/
 
 #markdown
 markdown/
+
+#測試文件
+tests/
