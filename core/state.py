@@ -18,3 +18,6 @@ class State(TypedDict):
     multi_intent_results: List[tuple]
     decompose_skipped: bool
     processed_results: List[Dict]
+    judge_items: List[Dict]
+    candidate_by_id: Dict[str, tuple]
+    tool_execution_history: List[Dict]
