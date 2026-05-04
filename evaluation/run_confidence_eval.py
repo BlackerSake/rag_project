@@ -346,3 +346,11 @@ if __name__ == "__main__":
         logging.info("\n" + "=" * 80)
         logging.info("所有信号源评测完成")
         logging.info("=" * 80)
+
+    if args.output:
+        # 指定單一 signal 時輸出單份報告，方便主程式冷啟動直接讀取 records。
+        output_payload = reports[signal_types[0]] if len(signal_types) == 1 else reports
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        with args.output.open("w", encoding="utf-8") as f:
+            json.dump(output_payload, f, ensure_ascii=False, indent=2)
+        logging.info("评测报告已写入: %s", args.output)

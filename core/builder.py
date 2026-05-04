@@ -3,7 +3,7 @@
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 from .state import State
-from .nodes import retrieve_knowledge, retrieve_knowledge_multi, direct_answer, clarify_question, fallback_response, summarize_conversation, increment_rounds, chat_response, decompose_query, llm_rewrite, task_dispatcher
+from .nodes import retrieve_knowledge, retrieve_knowledge_multi, confidence_gate, direct_answer, clarify_question, fallback_response, summarize_conversation, increment_rounds, chat_response, decompose_query, llm_rewrite, task_dispatcher
 from .edges import check_conversation_rounds
 
 # 创建状态图
@@ -15,6 +15,7 @@ graph.add_node("llm_rewrite", llm_rewrite)  # LLM查询重写节点
 graph.add_node("task_dispatcher", task_dispatcher)  # 任务分发节点（分拣中心）
 graph.add_node("retrieve_knowledge", retrieve_knowledge)  # 单意图检索
 graph.add_node("retrieve_knowledge_multi", retrieve_knowledge_multi)  # 多意图检索节点
+graph.add_node("confidence_gate", confidence_gate)  # 置信度門控節點
 graph.add_node("direct_answer", direct_answer)  # 直接回答节点
 graph.add_node("clarify_question", clarify_question)  # 澄清提问节点
 graph.add_node("fallback_response", fallback_response)  # 兜底回复节点
@@ -72,9 +73,29 @@ graph.add_conditional_edges(
     }
 )
 
-# 知识库查询后进入直接回答节点
-graph.add_edge("retrieve_knowledge", "direct_answer")
-graph.add_edge("retrieve_knowledge_multi", "direct_answer")
+# 知識庫查詢後先進入置信度門控，再依決策路由。
+graph.add_edge("retrieve_knowledge", "confidence_gate")
+graph.add_edge("retrieve_knowledge_multi", "confidence_gate")
+
+
+def route_after_confidence(state: State) -> str:
+    """依 confidence gate 決策選擇回答或澄清。"""
+    decision = state.get("confidence_decision")
+    if decision in {"HIGH", "MEDIUM", None}:
+        return "direct_answer"
+    if decision == "LOW":
+        return "clarify_question"
+    return "direct_answer"
+
+
+graph.add_conditional_edges(
+    "confidence_gate",
+    route_after_confidence,
+    {
+        "direct_answer": "direct_answer",
+        "clarify_question": "clarify_question",
+    }
+)
 
 # 每个回复节点后增加轮数并检查是否需要总结
 graph.add_edge("direct_answer", "increment_rounds")

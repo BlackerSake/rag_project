@@ -1,0 +1,3225 @@
+{
+  "summary": {
+    "num_queries": 120,
+    "window_size": 100,
+    "phase_summary": {
+      "fill": {
+        "num_queries": 100,
+        "decision_distribution": {
+          "HIGH": 37,
+          "MEDIUM": 46,
+          "LOW": 17
+        }
+      },
+      "steady": {
+        "num_queries": 20,
+        "decision_distribution": {
+          "HIGH": 0,
+          "MEDIUM": 4,
+          "LOW": 16
+        }
+      }
+    },
+    "recall_by_decision": {
+      "HIGH": {
+        "num_queries": 37,
+        "avg_recall_at_k": 0.918918918918919
+      },
+      "MEDIUM": {
+        "num_queries": 50,
+        "avg_recall_at_k": 0.8766666666666666
+      },
+      "LOW": {
+        "num_queries": 33,
+        "avg_recall_at_k": 0.5909090909090908
+      }
+    },
+    "k": 3,
+    "avg_latency_ms": 367.0132497946421,
+    "prefill_offline": false,
+    "offline_thresholds": null,
+    "signal_type": "margin"
+  },
+  "records": [
+    {
+      "index": 1,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "能退吗",
+      "intent": "A1",
+      "expected_doc_ids": [
+        8,
+        2
+      ],
+      "pred_doc_ids": [
+        62,
+        13,
+        6
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.009534060955047607,
+      "p25": 0.5,
+      "p75": 0.9,
+      "sample_count": 1,
+      "recall_at_k": 0.0,
+      "vector_latency_seconds": 0.3672029972076416,
+      "latency_seconds": 0.3675353527069092
+    },
+    {
+      "index": 2,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "退款要多久",
+      "intent": "A1",
+      "expected_doc_ids": [
+        9,
+        15
+      ],
+      "pred_doc_ids": [
+        9,
+        15,
+        12
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.09271103143692017,
+      "p25": 0.030328303575515747,
+      "p75": 0.07191678881645203,
+      "sample_count": 2,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.32767319679260254,
+      "latency_seconds": 0.3278045654296875
+    },
+    {
+      "index": 3,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "退货运费谁付",
+      "intent": "A1",
+      "expected_doc_ids": [
+        7,
+        5
+      ],
+      "pred_doc_ids": [
+        7,
+        23,
+        5
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.1670181155204773,
+      "p25": 0.05112254619598389,
+      "p75": 0.12986457347869873,
+      "sample_count": 3,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.2848660945892334,
+      "latency_seconds": 0.2849874496459961
+    },
+    {
+      "index": 4,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我买的鞋子尺码不合适，可以退吗？",
+      "intent": "A1",
+      "expected_doc_ids": [
+        2
+      ],
+      "pred_doc_ids": [
+        2,
+        14,
+        10
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.12763679027557373,
+      "p25": 0.07191678881645203,
+      "p75": 0.13748212158679962,
+      "sample_count": 4,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.3371739387512207,
+      "latency_seconds": 0.33734965324401855
+    },
+    {
+      "index": 5,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "买了件衣服不喜欢，想退货怎么操作？",
+      "intent": "A1",
+      "expected_doc_ids": [
+        6,
+        8
+      ],
+      "pred_doc_ids": [
+        6,
+        3,
+        2
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.012854576110839844,
+      "p25": 0.012854576110839844,
+      "p75": 0.12763679027557373,
+      "sample_count": 5,
+      "recall_at_k": 0.5,
+      "vector_latency_seconds": 0.3160426616668701,
+      "latency_seconds": 0.3162727355957031
+    },
+    {
+      "index": 6,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "退货申请提交了，什么时候能收到退款？",
+      "intent": "A1",
+      "expected_doc_ids": [
+        9,
+        12
+      ],
+      "pred_doc_ids": [
+        9,
+        12,
+        36
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.054331183433532715,
+      "p25": 0.02322372794151306,
+      "p75": 0.11890535056591034,
+      "sample_count": 6,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.31332969665527344,
+      "latency_seconds": 0.3137195110321045
+    },
+    {
+      "index": 7,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "商品收到时包装已经破损，怎么退？",
+      "intent": "A1",
+      "expected_doc_ids": [
+        1,
+        3
+      ],
+      "pred_doc_ids": [
+        13,
+        4,
+        1
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.0753980278968811,
+      "p25": 0.03359287977218628,
+      "p75": 0.11017391085624695,
+      "sample_count": 7,
+      "recall_at_k": 0.5,
+      "vector_latency_seconds": 0.3119504451751709,
+      "latency_seconds": 0.31207776069641113
+    },
+    {
+      "index": 8,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "已经穿过一次的衣服还能退吗？",
+      "intent": "A1",
+      "expected_doc_ids": [
+        14,
+        8
+      ],
+      "pred_doc_ids": [
+        14,
+        2,
+        10
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.15256237983703613,
+      "p25": 0.0439620316028595,
+      "p75": 0.13386818766593933,
+      "sample_count": 8,
+      "recall_at_k": 0.5,
+      "vector_latency_seconds": 0.34607839584350586,
+      "latency_seconds": 0.34620118141174316
+    },
+    {
+      "index": 9,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "退款会退回到哪里？",
+      "intent": "A1",
+      "expected_doc_ids": [
+        15,
+        9
+      ],
+      "pred_doc_ids": [
+        15,
+        9,
+        36
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.11298340559005737,
+      "p25": 0.054331183433532715,
+      "p75": 0.12763679027557373,
+      "sample_count": 9,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.5489597320556641,
+      "latency_seconds": 0.5490701198577881
+    },
+    {
+      "index": 10,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我买的手机收到后发现屏幕有划痕，但我已经开封使用了两天，商家说这属于人为损坏不给退，我该怎么办？",
+      "intent": "A1",
+      "expected_doc_ids": [
+        3,
+        1,
+        8
+      ],
+      "pred_doc_ids": [
+        1,
+        13,
+        26
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.027745425701141357,
+      "p25": 0.0343918651342392,
+      "p75": 0.12397344410419464,
+      "sample_count": 10,
+      "recall_at_k": 0.3333333333333333,
+      "vector_latency_seconds": 0.40656375885009766,
+      "latency_seconds": 0.4066739082336426
+    },
+    {
+      "index": 11,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "七天无理由退货和质量问题退货有什么区别？运费分别谁出？",
+      "intent": "A1",
+      "expected_doc_ids": [
+        5,
+        7,
+        8
+      ],
+      "pred_doc_ids": [
+        5,
+        7,
+        23
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.06066972017288208,
+      "p25": 0.041038304567337036,
+      "p75": 0.12031009793281555,
+      "sample_count": 11,
+      "recall_at_k": 0.6666666666666666,
+      "vector_latency_seconds": 0.40903139114379883,
+      "latency_seconds": 0.40914297103881836
+    },
+    {
+      "index": 12,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我把商品寄回去了但物流显示已签收，商家迟迟不确认收货，超过48小时了还没退款怎么办？",
+      "intent": "A1",
+      "expected_doc_ids": [
+        12,
+        9
+      ],
+      "pred_doc_ids": [
+        12,
+        4,
+        36
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.06734561920166016,
+      "p25": 0.047684744000434875,
+      "p75": 0.11664675176143646,
+      "sample_count": 12,
+      "recall_at_k": 0.5,
+      "vector_latency_seconds": 0.34061121940612793,
+      "latency_seconds": 0.3407468795776367
+    },
+    {
+      "index": 13,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我在平台购买了一双运动鞋，签收后第三天发现鞋底出现了开胶现象，正常穿着并未进行剧烈运动，属于明显质量问题，请问我应该通过哪些步骤申请退货，退货运费是否需要我自行承担，预计多久能收到退款？",
+      "intent": "A1",
+      "expected_doc_ids": [
+        3,
+        7,
+        9
+      ],
+      "pred_doc_ids": [
+        18,
+        3,
+        5
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.036826252937316895,
+      "p25": 0.036826252937316895,
+      "p75": 0.11298340559005737,
+      "sample_count": 13,
+      "recall_at_k": 0.3333333333333333,
+      "vector_latency_seconds": 0.4927232265472412,
+      "latency_seconds": 0.4928407669067383
+    },
+    {
+      "index": 14,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "请问如果我购买的商品与商品详情页描述严重不符，比如宣传是纯棉材质实际收到的是涤纶，这种情况下申请退货退款的具体流程是什么，平台大概需要多长时间审核完成？",
+      "intent": "A1",
+      "expected_doc_ids": [
+        4,
+        3
+      ],
+      "pred_doc_ids": [
+        4,
+        3,
+        2
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.06774526834487915,
+      "p25": 0.04120248556137085,
+      "p75": 0.10791531205177307,
+      "sample_count": 14,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.397641658782959,
+      "latency_seconds": 0.39781618118286133
+    },
+    {
+      "index": 15,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "今天天气怎么样，适合出门购物吗？",
+      "intent": "D1",
+      "expected_doc_ids": [
+        0
+      ],
+      "pred_doc_ids": [
+        44,
+        62,
+        61
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.0043995678424835205,
+      "p25": 0.032285839319229126,
+      "p75": 0.10284721851348877,
+      "sample_count": 15,
+      "recall_at_k": 0.0,
+      "vector_latency_seconds": 0.7370996475219727,
+      "latency_seconds": 0.7372393608093262
+    },
+    {
+      "index": 16,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "可以换货吗",
+      "intent": "A2",
+      "expected_doc_ids": [
+        26,
+        16
+      ],
+      "pred_doc_ids": [
+        26,
+        16,
+        23
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.04474061727523804,
+      "p25": 0.03455604612827301,
+      "p75": 0.09777912497520447,
+      "sample_count": 16,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.39683961868286133,
+      "latency_seconds": 0.3969690799713135
+    },
+    {
+      "index": 17,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "维修多久",
+      "intent": "A2",
+      "expected_doc_ids": [
+        22,
+        17
+      ],
+      "pred_doc_ids": [
+        22,
+        28,
+        24
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.19519656896591187,
+      "p25": 0.036826252937316895,
+      "p75": 0.11298340559005737,
+      "sample_count": 17,
+      "recall_at_k": 0.5,
+      "vector_latency_seconds": 0.4087224006652832,
+      "latency_seconds": 0.4088919162750244
+    },
+    {
+      "index": 18,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "鞋子收到后发现开胶了，能换新的吗？",
+      "intent": "A2",
+      "expected_doc_ids": [
+        18,
+        26
+      ],
+      "pred_doc_ids": [
+        18,
+        26,
+        16
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.21024054288864136,
+      "p25": 0.03880484402179718,
+      "p75": 0.12397344410419464,
+      "sample_count": 18,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.4120492935180664,
+      "latency_seconds": 0.4121696949005127
+    },
+    {
+      "index": 19,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "衣服买回来尺码小了一码，能换大一号的吗？",
+      "intent": "A2",
+      "expected_doc_ids": [
+        16,
+        23
+      ],
+      "pred_doc_ids": [
+        16,
+        2,
+        14
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.10707014799118042,
+      "p25": 0.040783435106277466,
+      "p75": 0.12031009793281555,
+      "sample_count": 19,
+      "recall_at_k": 0.5,
+      "vector_latency_seconds": 0.4656083583831787,
+      "latency_seconds": 0.46573686599731445
+    },
+    {
+      "index": 20,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "附近有没有维修点？",
+      "intent": "A2",
+      "expected_doc_ids": [
+        20,
+        21
+      ],
+      "pred_doc_ids": [
+        20,
+        27,
+        21
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.12132406234741211,
+      "p25": 0.04276202619075775,
+      "p75": 0.12290224432945251,
+      "sample_count": 20,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.37938857078552246,
+      "latency_seconds": 0.37950968742370605
+    },
+    {
+      "index": 21,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "维修是免费的吗？",
+      "intent": "A2",
+      "expected_doc_ids": [
+        24,
+        28
+      ],
+      "pred_doc_ids": [
+        24,
+        28,
+        30
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.07312488555908203,
+      "p25": 0.04474061727523804,
+      "p75": 0.12132406234741211,
+      "sample_count": 21,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.4733543395996094,
+      "latency_seconds": 0.4734675884246826
+    },
+    {
+      "index": 22,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "换货需要把配件一起寄回去吗？",
+      "intent": "A2",
+      "expected_doc_ids": [
+        28,
+        16
+      ],
+      "pred_doc_ids": [
+        29,
+        26,
+        13
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.14156591892242432,
+      "p25": 0.04713825881481171,
+      "p75": 0.12605860829353333,
+      "sample_count": 22,
+      "recall_at_k": 0.0,
+      "vector_latency_seconds": 0.28725266456604004,
+      "latency_seconds": 0.28737711906433105
+    },
+    {
+      "index": 23,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我的手机屏幕摔碎了，请问是申请维修还是换货更合适，两者流程上有什么区别？",
+      "intent": "A2",
+      "expected_doc_ids": [
+        17,
+        26,
+        22
+      ],
+      "pred_doc_ids": [
+        17,
+        1,
+        26
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.01610100269317627,
+      "p25": 0.040783435106277466,
+      "p75": 0.12448042631149292,
+      "sample_count": 23,
+      "recall_at_k": 0.6666666666666666,
+      "vector_latency_seconds": 0.5323669910430908,
+      "latency_seconds": 0.5324833393096924
+    },
+    {
+      "index": 24,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "手机维修完成后如果同一问题再次出现，还有保修吗？",
+      "intent": "A2",
+      "expected_doc_ids": [
+        28,
+        24
+      ],
+      "pred_doc_ids": [
+        28,
+        30,
+        17
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.03835040330886841,
+      "p25": 0.03796936571598053,
+      "p75": 0.12290224432945251,
+      "sample_count": 24,
+      "recall_at_k": 0.5,
+      "vector_latency_seconds": 0.3005797863006592,
+      "latency_seconds": 0.30071544647216797
+    },
+    {
+      "index": 25,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我购买的笔记本电脑在使用三周后出现了键盘部分按键失灵的情况，这属于正常使用中出现的质量问题，请问我应该选择申请换货还是寄修，两种方式的处理时长分别是多久，换货的话运费由谁承担？",
+      "intent": "A2",
+      "expected_doc_ids": [
+        26,
+        22,
+        23
+      ],
+      "pred_doc_ids": [
+        26,
+        29,
+        23
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.0849413275718689,
+      "p25": 0.03835040330886841,
+      "p75": 0.12132406234741211,
+      "sample_count": 25,
+      "recall_at_k": 0.6666666666666666,
+      "vector_latency_seconds": 0.31466031074523926,
+      "latency_seconds": 0.31479835510253906
+    },
+    {
+      "index": 26,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "维修点周末有没有上班，去的时候需要带哪些材料，是否需要提前预约？",
+      "intent": "A2",
+      "expected_doc_ids": [
+        27,
+        21,
+        20
+      ],
+      "pred_doc_ids": [
+        27,
+        20,
+        21
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.12456434965133667,
+      "p25": 0.039947956800460815,
+      "p75": 0.12375427782535553,
+      "sample_count": 26,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.40857791900634766,
+      "latency_seconds": 0.4086899757385254
+    },
+    {
+      "index": 27,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我想了解一下双十一活动有哪些优惠券可以领取？",
+      "intent": "B2",
+      "expected_doc_ids": [
+        61,
+        63
+      ],
+      "pred_doc_ids": [
+        74,
+        71,
+        72
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.06723654270172119,
+      "p25": 0.04154551029205322,
+      "p75": 0.12294420599937439,
+      "sample_count": 27,
+      "recall_at_k": 0.0,
+      "vector_latency_seconds": 0.32102060317993164,
+      "latency_seconds": 0.3211357593536377
+    },
+    {
+      "index": 28,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "维修期间可以借用备用机吗？",
+      "intent": "A2",
+      "expected_doc_ids": [
+        29
+      ],
+      "pred_doc_ids": [
+        30,
+        21,
+        20
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.2299290895462036,
+      "p25": 0.04314306378364563,
+      "p75": 0.12533245980739594,
+      "sample_count": 28,
+      "recall_at_k": 0.0,
+      "vector_latency_seconds": 0.5026302337646484,
+      "latency_seconds": 0.502753496170044
+    },
+    {
+      "index": 29,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "快递到哪了",
+      "intent": "A3",
+      "expected_doc_ids": [
+        31,
+        45
+      ],
+      "pred_doc_ids": [
+        31,
+        32,
+        38
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.059851109981536865,
+      "p25": 0.04474061727523804,
+      "p75": 0.12456434965133667,
+      "sample_count": 29,
+      "recall_at_k": 0.5,
+      "vector_latency_seconds": 0.3577113151550293,
+      "latency_seconds": 0.3578307628631592
+    },
+    {
+      "index": 30,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "能改地址吗",
+      "intent": "A3",
+      "expected_doc_ids": [
+        33
+      ],
+      "pred_doc_ids": [
+        33,
+        102,
+        96
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.15113574266433716,
+      "p25": 0.04713825881481171,
+      "p75": 0.12686868011951447,
+      "sample_count": 30,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.281644344329834,
+      "latency_seconds": 0.28176021575927734
+    },
+    {
+      "index": 31,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "单号在哪看",
+      "intent": "A3",
+      "expected_doc_ids": [
+        45
+      ],
+      "pred_doc_ids": [
+        45,
+        11,
+        41
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.09492677450180054,
+      "p25": 0.049535900354385376,
+      "p75": 0.1261005699634552,
+      "sample_count": 31,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.37953901290893555,
+      "latency_seconds": 0.37966203689575195
+    },
+    {
+      "index": 32,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "下单三天了还没发货是怎么回事？",
+      "intent": "A3",
+      "expected_doc_ids": [
+        34
+      ],
+      "pred_doc_ids": [
+        34,
+        12,
+        39
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.13481515645980835,
+      "p25": 0.051933541893959045,
+      "p75": 0.12943138182163239,
+      "sample_count": 32,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.302581787109375,
+      "latency_seconds": 0.3027069568634033
+    },
+    {
+      "index": 33,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "快递员没打电话直接放驿站了，怎么投诉？",
+      "intent": "A3",
+      "expected_doc_ids": [
+        38
+      ],
+      "pred_doc_ids": [
+        38,
+        42,
+        36
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.16199225187301636,
+      "p25": 0.054331183433532715,
+      "p75": 0.13481515645980835,
+      "sample_count": 33,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.5164222717285156,
+      "latency_seconds": 0.5165450572967529
+    },
+    {
+      "index": 34,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "物流信息三天没更新了，快递是不是丢了？",
+      "intent": "A3",
+      "expected_doc_ids": [
+        39,
+        42
+      ],
+      "pred_doc_ids": [
+        39,
+        42,
+        38
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.10427957773208618,
+      "p25": 0.05571116507053375,
+      "p75": 0.1330205649137497,
+      "sample_count": 34,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.386627197265625,
+      "latency_seconds": 0.3867495059967041
+    },
+    {
+      "index": 35,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "春节期间快递还送吗，会不会很慢？",
+      "intent": "A3",
+      "expected_doc_ids": [
+        44
+      ],
+      "pred_doc_ids": [
+        44,
+        37,
+        32
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.08630877733230591,
+      "p25": 0.05709114670753479,
+      "p75": 0.13122597336769104,
+      "sample_count": 35,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.43135809898376465,
+      "latency_seconds": 0.43149685859680176
+    },
+    {
+      "index": 36,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "可以延长收货时间吗？",
+      "intent": "A3",
+      "expected_doc_ids": [
+        43
+      ],
+      "pred_doc_ids": [
+        43,
+        37,
+        33
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.14890462160110474,
+      "p25": 0.05847112834453583,
+      "p75": 0.13650284707546234,
+      "sample_count": 36,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.40888357162475586,
+      "latency_seconds": 0.4090085029602051
+    },
+    {
+      "index": 37,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我的快递显示已签收但我根本没收到，家里也没人在，这种情况下我应该怎么处理？",
+      "intent": "A3",
+      "expected_doc_ids": [
+        42,
+        38,
+        31
+      ],
+      "pred_doc_ids": [
+        38,
+        42,
+        32
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.03042393922805786,
+      "p25": 0.054331183433532715,
+      "p75": 0.13481515645980835,
+      "sample_count": 37,
+      "recall_at_k": 0.6666666666666666,
+      "vector_latency_seconds": 0.41120004653930664,
+      "latency_seconds": 0.41132616996765137
+    },
+    {
+      "index": 38,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我买的东西发货后快递显示退回商家了，是什么原因，我现在应该怎么处理？",
+      "intent": "A3",
+      "expected_doc_ids": [
+        36,
+        33
+      ],
+      "pred_doc_ids": [
+        36,
+        12,
+        13
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.05582869052886963,
+      "p25": 0.05470556020736694,
+      "p75": 0.1330205649137497,
+      "sample_count": 38,
+      "recall_at_k": 0.5,
+      "vector_latency_seconds": 0.36571669578552246,
+      "latency_seconds": 0.3658325672149658
+    },
+    {
+      "index": 39,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我在平台下单购买了一批货物，收货地址填写的是公司地址，但快递员在未提前联系的情况下将包裹放在了距公司较远的快递驿站，由于工作繁忙无法及时取件，请问我可以要求快递员重新送货上门吗，如果拒绝该如何投诉？",
+      "intent": "A3",
+      "expected_doc_ids": [
+        38
+      ],
+      "pred_doc_ids": [
+        38,
+        42,
+        33
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.103354811668396,
+      "p25": 0.05507993698120117,
+      "p75": 0.13122597336769104,
+      "sample_count": 39,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.45068979263305664,
+      "latency_seconds": 0.45079851150512695
+    },
+    {
+      "index": 40,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我购买的国际海淘商品已经超过预计到达时间一周，物流查询显示货物滞留在海关，请问平台是否能协助处理，还是需要我自己联系物流公司？",
+      "intent": "A3",
+      "expected_doc_ids": [
+        41,
+        39
+      ],
+      "pred_doc_ids": [
+        39,
+        41,
+        38
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.0007897019386291504,
+      "p25": 0.051933541893959045,
+      "p75": 0.12943138182163239,
+      "sample_count": 40,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.4104471206665039,
+      "latency_seconds": 0.41057562828063965
+    },
+    {
+      "index": 41,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我想知道这款冰箱的容量是多少，适合几口人的家庭？",
+      "intent": "B1",
+      "expected_doc_ids": [
+        51
+      ],
+      "pred_doc_ids": [
+        51,
+        60,
+        53
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.12584632635116577,
+      "p25": 0.054331183433532715,
+      "p75": 0.12763679027557373,
+      "sample_count": 41,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.2884352207183838,
+      "latency_seconds": 0.2885582447052002
+    },
+    {
+      "index": 42,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "这个防水吗",
+      "intent": "B1",
+      "expected_doc_ids": [
+        54
+      ],
+      "pred_doc_ids": [
+        54,
+        28,
+        129
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.035523831844329834,
+      "p25": 0.04713825881481171,
+      "p75": 0.12718917429447174,
+      "sample_count": 42,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.2905614376068115,
+      "latency_seconds": 0.290677547454834
+    },
+    {
+      "index": 43,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "多重",
+      "intent": "B1",
+      "expected_doc_ids": [
+        48
+      ],
+      "pred_doc_ids": [
+        104,
+        72,
+        143
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.015277475118637085,
+      "p25": 0.04154551029205322,
+      "p75": 0.12674155831336975,
+      "sample_count": 43,
+      "recall_at_k": 0.0,
+      "vector_latency_seconds": 0.33716773986816406,
+      "latency_seconds": 0.33730626106262207
+    },
+    {
+      "index": 44,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "这款耳机一次充电能用多久？",
+      "intent": "B1",
+      "expected_doc_ids": [
+        52
+      ],
+      "pred_doc_ids": [
+        52,
+        49,
+        57
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.2500249743461609,
+      "p25": 0.04314306378364563,
+      "p75": 0.12943138182163239,
+      "sample_count": 44,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.3608062267303467,
+      "latency_seconds": 0.3609457015991211
+    },
+    {
+      "index": 45,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "空调适合多大的房间用？",
+      "intent": "B1",
+      "expected_doc_ids": [
+        56
+      ],
+      "pred_doc_ids": [
+        56,
+        81,
+        58
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.17850109934806824,
+      "p25": 0.04474061727523804,
+      "p75": 0.13481515645980835,
+      "sample_count": 45,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.3629288673400879,
+      "latency_seconds": 0.36306285858154297
+    },
+    {
+      "index": 46,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "这件衣服的材质是什么，好打理吗？",
+      "intent": "B1",
+      "expected_doc_ids": [
+        47
+      ],
+      "pred_doc_ids": [
+        47,
+        14,
+        2
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.26151585578918457,
+      "p25": 0.04713825881481171,
+      "p75": 0.13987822830677032,
+      "sample_count": 46,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.40889573097229004,
+      "latency_seconds": 0.4090099334716797
+    },
+    {
+      "index": 47,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "充电宝可以带上飞机吗，容量多大？",
+      "intent": "B1",
+      "expected_doc_ids": [
+        57
+      ],
+      "pred_doc_ids": [
+        57,
+        49,
+        83
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.10113433003425598,
+      "p25": 0.049535900354385376,
+      "p75": 0.13819053769111633,
+      "sample_count": 47,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.29740333557128906,
+      "latency_seconds": 0.29758477210998535
+    },
+    {
+      "index": 48,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "这个充电器支持iPhone的快充吗？",
+      "intent": "B1",
+      "expected_doc_ids": [
+        49
+      ],
+      "pred_doc_ids": [
+        49,
+        57,
+        37
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.20013153553009033,
+      "p25": 0.051933541893959045,
+      "p75": 0.14340059459209442,
+      "sample_count": 48,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.3153958320617676,
+      "latency_seconds": 0.31557369232177734
+    },
+    {
+      "index": 49,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我想买一台路由器，请问这款的覆盖范围有多大，支持组网扩展吗，接口够用吗？",
+      "intent": "B1",
+      "expected_doc_ids": [
+        58
+      ],
+      "pred_doc_ids": [
+        58,
+        30,
+        28
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.32208624482154846,
+      "p25": 0.054331183433532715,
+      "p75": 0.14890462160110474,
+      "sample_count": 49,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.40680456161499023,
+      "latency_seconds": 0.40692806243896484
+    },
+    {
+      "index": 50,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "这款相机的像素怎么样，支持拍4K视频吗，有光学防抖吗？",
+      "intent": "B1",
+      "expected_doc_ids": [
+        55
+      ],
+      "pred_doc_ids": [
+        55,
+        80,
+        46
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.2285660207271576,
+      "p25": 0.05470556020736694,
+      "p75": 0.15057796239852905,
+      "sample_count": 50,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.29562830924987793,
+      "latency_seconds": 0.29593491554260254
+    },
+    {
+      "index": 51,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我打算为家里15平米左右的卧室购置一台变频空调，请问这款空调的匹数是否合适，能效等级是几级，运行时的噪音水平大概是多少分贝，对睡眠影响大吗？",
+      "intent": "B1",
+      "expected_doc_ids": [
+        56
+      ],
+      "pred_doc_ids": [
+        56,
+        53,
+        51
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.28991833329200745,
+      "p25": 0.05507993698120117,
+      "p75": 0.15184906125068665,
+      "sample_count": 51,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.5252127647399902,
+      "latency_seconds": 0.5253431797027588
+    },
+    {
+      "index": 52,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我想购买这款手机，请问屏幕是什么材质的，分辨率和刷新率分别是多少，是否支持HDR显示，最高亮度能达到多少尼特？",
+      "intent": "B1",
+      "expected_doc_ids": [
+        46
+      ],
+      "pred_doc_ids": [
+        46,
+        59,
+        55
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.1254870891571045,
+      "p25": 0.0554543137550354,
+      "p75": 0.1514924019575119,
+      "sample_count": 52,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.28954410552978516,
+      "latency_seconds": 0.28967809677124023
+    },
+    {
+      "index": 53,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "这款洗衣机的洗涤功率和脱水功率分别是多少，能效是几级，适合几口人的家庭？",
+      "intent": "B1",
+      "expected_doc_ids": [
+        53
+      ],
+      "pred_doc_ids": [
+        53,
+        60,
+        56
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.2349710464477539,
+      "p25": 0.05582869052886963,
+      "p75": 0.15256237983703613,
+      "sample_count": 53,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.33359622955322266,
+      "latency_seconds": 0.33373284339904785
+    },
+    {
+      "index": 54,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "请帮我推荐一下今晚去哪里吃饭比较好",
+      "intent": "D1",
+      "expected_doc_ids": [
+        0
+      ],
+      "pred_doc_ids": [
+        126,
+        125,
+        20
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.023729801177978516,
+      "p25": 0.05470556020736694,
+      "p75": 0.1522057205438614,
+      "sample_count": 54,
+      "recall_at_k": 0.0,
+      "vector_latency_seconds": 0.32619714736938477,
+      "latency_seconds": 0.32633495330810547
+    },
+    {
+      "index": 55,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "有优惠吗",
+      "intent": "B2",
+      "expected_doc_ids": [
+        61,
+        64
+      ],
+      "pred_doc_ids": [
+        61,
+        65,
+        71
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.006604254245758057,
+      "p25": 0.049535900354385376,
+      "p75": 0.15184906125068665,
+      "sample_count": 55,
+      "recall_at_k": 0.5,
+      "vector_latency_seconds": 0.49234604835510254,
+      "latency_seconds": 0.49245572090148926
+    },
+    {
+      "index": 56,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "券怎么用",
+      "intent": "B2",
+      "expected_doc_ids": [
+        64
+      ],
+      "pred_doc_ids": [
+        64,
+        97,
+        114
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.06121915578842163,
+      "p25": 0.051933541893959045,
+      "p75": 0.1514924019575119,
+      "sample_count": 56,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.4087648391723633,
+      "latency_seconds": 0.40888142585754395
+    },
+    {
+      "index": 57,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "昨天刚买，今天发现降价了，能补差价吗？",
+      "intent": "B2",
+      "expected_doc_ids": [
+        62
+      ],
+      "pred_doc_ids": [
+        62,
+        69,
+        61
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.19362974166870117,
+      "p25": 0.054331183433532715,
+      "p75": 0.15256237983703613,
+      "sample_count": 57,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.40056586265563965,
+      "latency_seconds": 0.4006819725036621
+    },
+    {
+      "index": 58,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "新用户有什么专属优惠？",
+      "intent": "B2",
+      "expected_doc_ids": [
+        71
+      ],
+      "pred_doc_ids": [
+        71,
+        65,
+        109
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.11185431480407715,
+      "p25": 0.05470556020736694,
+      "p75": 0.1522057205438614,
+      "sample_count": 58,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.2755882740020752,
+      "latency_seconds": 0.2757084369659424
+    },
+    {
+      "index": 59,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "优惠券过期了还能用吗？",
+      "intent": "B2",
+      "expected_doc_ids": [
+        68
+      ],
+      "pred_doc_ids": [
+        68,
+        110,
+        72
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.10233032703399658,
+      "p25": 0.05507993698120117,
+      "p75": 0.15184906125068665,
+      "sample_count": 59,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.33894896507263184,
+      "latency_seconds": 0.33907413482666016
+    },
+    {
+      "index": 60,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "平台券和店铺券可以同时使用吗？",
+      "intent": "B2",
+      "expected_doc_ids": [
+        72
+      ],
+      "pred_doc_ids": [
+        72,
+        75,
+        64
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.16355055570602417,
+      "p25": 0.0554543137550354,
+      "p75": 0.1549198478460312,
+      "sample_count": 60,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.4091532230377197,
+      "latency_seconds": 0.40927791595458984
+    },
+    {
+      "index": 61,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "怎么参加秒杀活动，抢到的几率大吗？",
+      "intent": "B2",
+      "expected_doc_ids": [
+        67
+      ],
+      "pred_doc_ids": [
+        67,
+        118,
+        74
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.14127546548843384,
+      "p25": 0.05582869052886963,
+      "p75": 0.15256237983703613,
+      "sample_count": 61,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.4092741012573242,
+      "latency_seconds": 0.4093925952911377
+    },
+    {
+      "index": 62,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我想买一件商品，既有满减活动又有店铺优惠券，应该怎么组合使用才最划算？",
+      "intent": "B2",
+      "expected_doc_ids": [
+        75,
+        72
+      ],
+      "pred_doc_ids": [
+        75,
+        72,
+        66
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.052962541580200195,
+      "p25": 0.05470556020736694,
+      "p75": 0.1522057205438614,
+      "sample_count": 62,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.4097440242767334,
+      "latency_seconds": 0.409865140914917
+    },
+    {
+      "index": 63,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "跨店满减是怎么计算的，比如买了A店100元和B店200元，满300减50，我实际每家店能减多少钱？",
+      "intent": "B2",
+      "expected_doc_ids": [
+        66
+      ],
+      "pred_doc_ids": [
+        66,
+        75,
+        72
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.1758069396018982,
+      "p25": 0.05507993698120117,
+      "p75": 0.15727731585502625,
+      "sample_count": 63,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.2988436222076416,
+      "latency_seconds": 0.2991154193878174
+    },
+    {
+      "index": 64,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我是新注册的用户，请问注册完成后会自动获得新人优惠券吗，这些优惠券有使用门槛和有效期限制吗，可以和其他活动叠加使用吗？",
+      "intent": "B2",
+      "expected_doc_ids": [
+        71,
+        72,
+        64
+      ],
+      "pred_doc_ids": [
+        71,
+        74,
+        72
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.09095549583435059,
+      "p25": 0.0554543137550354,
+      "p75": 0.1549198478460312,
+      "sample_count": 64,
+      "recall_at_k": 0.6666666666666666,
+      "vector_latency_seconds": 0.2918975353240967,
+      "latency_seconds": 0.2920339107513428
+    },
+    {
+      "index": 65,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我上周购买了一件商品原价500元，今天同款商品参加活动降到了380元，请问我可以申请价保退差价吗，申请流程是什么，大概多久到账？",
+      "intent": "B2",
+      "expected_doc_ids": [
+        62
+      ],
+      "pred_doc_ids": [
+        62,
+        4,
+        6
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.1526721715927124,
+      "p25": 0.05582869052886963,
+      "p75": 0.1526721715927124,
+      "sample_count": 65,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.4346318244934082,
+      "latency_seconds": 0.4347553253173828
+    },
+    {
+      "index": 66,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我的快递单号是多少，在哪里查？",
+      "intent": "A3",
+      "expected_doc_ids": [
+        45
+      ],
+      "pred_doc_ids": [
+        45,
+        31,
+        41
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.07740151882171631,
+      "p25": 0.05683429539203644,
+      "p75": 0.15264472365379333,
+      "sample_count": 66,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.31321072578430176,
+      "latency_seconds": 0.3133430480957031
+    },
+    {
+      "index": 67,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "路由器怎么设置",
+      "intent": "B3",
+      "expected_doc_ids": [
+        79
+      ],
+      "pred_doc_ids": [
+        79,
+        77,
+        105
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.21442759037017822,
+      "p25": 0.05783990025520325,
+      "p75": 0.15733221173286438,
+      "sample_count": 67,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.2977104187011719,
+      "latency_seconds": 0.2978498935699463
+    },
+    {
+      "index": 68,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "电视怎么连网",
+      "intent": "B3",
+      "expected_doc_ids": [
+        77
+      ],
+      "pred_doc_ids": [
+        77,
+        59,
+        88
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.2012181282043457,
+      "p25": 0.058845505118370056,
+      "p75": 0.1623818278312683,
+      "sample_count": 68,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.28627800941467285,
+      "latency_seconds": 0.2864034175872803
+    },
+    {
+      "index": 69,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "空调过滤网多久清洗一次，怎么洗？",
+      "intent": "B3",
+      "expected_doc_ids": [
+        81
+      ],
+      "pred_doc_ids": [
+        81,
+        22,
+        56
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.22028648853302002,
+      "p25": 0.059851109981536865,
+      "p75": 0.16355055570602417,
+      "sample_count": 69,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.5359804630279541,
+      "latency_seconds": 0.5361409187316895
+    },
+    {
+      "index": 70,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "手机恢复出厂设置之前需要做什么准备？",
+      "intent": "B3",
+      "expected_doc_ids": [
+        82
+      ],
+      "pred_doc_ids": [
+        82,
+        21,
+        30
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.2148507535457611,
+      "p25": 0.06005576252937317,
+      "p75": 0.166151225566864,
+      "sample_count": 70,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.33655285835266113,
+      "latency_seconds": 0.3366880416870117
+    },
+    {
+      "index": 71,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "扫地机器人使用前需要注意什么？",
+      "intent": "B3",
+      "expected_doc_ids": [
+        89
+      ],
+      "pred_doc_ids": [
+        89,
+        81,
+        78
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.25429314374923706,
+      "p25": 0.06026041507720947,
+      "p75": 0.17141252756118774,
+      "sample_count": 71,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.30812597274780273,
+      "latency_seconds": 0.308243989944458
+    },
+    {
+      "index": 72,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "蓝牙音箱怎么和手机配对？",
+      "intent": "B3",
+      "expected_doc_ids": [
+        85
+      ],
+      "pred_doc_ids": [
+        85,
+        76,
+        52
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.10923242568969727,
+      "p25": 0.060465067625045776,
+      "p75": 0.16921532154083252,
+      "sample_count": 72,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.5895950794219971,
+      "latency_seconds": 0.5897300243377686
+    },
+    {
+      "index": 73,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "打印机安装了驱动但电脑还是识别不了，可能是什么问题，要怎么排查？",
+      "intent": "B3",
+      "expected_doc_ids": [
+        84
+      ],
+      "pred_doc_ids": [
+        84,
+        88,
+        21
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.19292163848876953,
+      "p25": 0.06066972017288208,
+      "p75": 0.1758069396018982,
+      "sample_count": 73,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.3256826400756836,
+      "latency_seconds": 0.3258087635040283
+    },
+    {
+      "index": 74,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "无人机第一次使用需要哪些准备工作，操控时有什么注意事项？",
+      "intent": "B3",
+      "expected_doc_ids": [
+        87
+      ],
+      "pred_doc_ids": [
+        87,
+        21,
+        150
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.17949801683425903,
+      "p25": 0.06080707907676697,
+      "p75": 0.17782755941152573,
+      "sample_count": 74,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.28276753425598145,
+      "latency_seconds": 0.282895565032959
+    },
+    {
+      "index": 75,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我是摄影新手，刚买了一台单反相机，请问应该如何调整ISO、快门速度和光圈这些基本参数，是否建议一开始就用手动模式，还是先从自动模式入门比较好？",
+      "intent": "B3",
+      "expected_doc_ids": [
+        80
+      ],
+      "pred_doc_ids": [
+        80,
+        55,
+        87
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.2650361955165863,
+      "p25": 0.060944437980651855,
+      "p75": 0.17899955809116364,
+      "sample_count": 75,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.3821282386779785,
+      "latency_seconds": 0.3822746276855469
+    },
+    {
+      "index": 76,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我购买的智能手表需要充电，请问是否必须使用原装充电器，充满电大概需要多长时间，充满电之后续航能维持多久？",
+      "intent": "B3",
+      "expected_doc_ids": [
+        83
+      ],
+      "pred_doc_ids": [
+        83,
+        52,
+        54
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.1178596019744873,
+      "p25": 0.06108179688453674,
+      "p75": 0.17875032871961594,
+      "sample_count": 76,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.2981076240539551,
+      "latency_seconds": 0.29824161529541016
+    },
+    {
+      "index": 77,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我想用投影仪连接笔记本电脑放PPT，请问需要什么连接线，投影仪应该切换到哪个输入源，电脑端需要做什么设置？",
+      "intent": "B3",
+      "expected_doc_ids": [
+        88
+      ],
+      "pred_doc_ids": [
+        88,
+        84,
+        85
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.2611585557460785,
+      "p25": 0.06121915578842163,
+      "p75": 0.17949801683425903,
+      "sample_count": 77,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.33127474784851074,
+      "latency_seconds": 0.331418514251709
+    },
+    {
+      "index": 78,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我的账号忘记密码了怎么找回？",
+      "intent": "C1",
+      "expected_doc_ids": [
+        92
+      ],
+      "pred_doc_ids": [
+        92,
+        103,
+        99
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.14973348379135132,
+      "p25": 0.06272350251674652,
+      "p75": 0.17924878746271133,
+      "sample_count": 78,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.3264303207397461,
+      "latency_seconds": 0.3265566825866699
+    },
+    {
+      "index": 79,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "忘记密码了",
+      "intent": "C1",
+      "expected_doc_ids": [
+        92
+      ],
+      "pred_doc_ids": [
+        92,
+        96,
+        103
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.12055385112762451,
+      "p25": 0.06422784924507141,
+      "p75": 0.17899955809116364,
+      "sample_count": 79,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.5083863735198975,
+      "latency_seconds": 0.5085361003875732
+    },
+    {
+      "index": 80,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "怎么注册",
+      "intent": "C1",
+      "expected_doc_ids": [
+        91
+      ],
+      "pred_doc_ids": [
+        91,
+        97,
+        111
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.09125351905822754,
+      "p25": 0.0657321959733963,
+      "p75": 0.17875032871961594,
+      "sample_count": 80,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.29993224143981934,
+      "latency_seconds": 0.30005311965942383
+    },
+    {
+      "index": 81,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "收不到验证码",
+      "intent": "C1",
+      "expected_doc_ids": [
+        101
+      ],
+      "pred_doc_ids": [
+        101,
+        97,
+        145
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.24145472049713135,
+      "p25": 0.06723654270172119,
+      "p75": 0.17949801683425903,
+      "sample_count": 81,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.30710864067077637,
+      "latency_seconds": 0.3072214126586914
+    },
+    {
+      "index": 82,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我的账号突然登不上去了，显示账号或密码错误",
+      "intent": "C1",
+      "expected_doc_ids": [
+        103,
+        92
+      ],
+      "pred_doc_ids": [
+        103,
+        99,
+        92
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.22003012895584106,
+      "p25": 0.06726381182670593,
+      "p75": 0.1895657330751419,
+      "sample_count": 82,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.6231820583343506,
+      "latency_seconds": 0.6233043670654297
+    },
+    {
+      "index": 83,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我想换绑定的手机号，怎么操作？",
+      "intent": "C1",
+      "expected_doc_ids": [
+        102,
+        93
+      ],
+      "pred_doc_ids": [
+        102,
+        93,
+        100
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.10664546489715576,
+      "p25": 0.06729108095169067,
+      "p75": 0.18620982766151428,
+      "sample_count": 83,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.2526819705963135,
+      "latency_seconds": 0.25280237197875977
+    },
+    {
+      "index": 84,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "同一个账号可以在多台手机上同时登录吗？",
+      "intent": "C1",
+      "expected_doc_ids": [
+        104
+      ],
+      "pred_doc_ids": [
+        104,
+        97,
+        98
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.19730496406555176,
+      "p25": 0.06731835007667542,
+      "p75": 0.19309866428375244,
+      "sample_count": 84,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.31555771827697754,
+      "latency_seconds": 0.31568074226379395
+    },
+    {
+      "index": 85,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我想注销账号，注销之后之前的订单记录还能查到吗？",
+      "intent": "C1",
+      "expected_doc_ids": [
+        94
+      ],
+      "pred_doc_ids": [
+        94,
+        6,
+        95
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.029924511909484863,
+      "p25": 0.06723654270172119,
+      "p75": 0.19292163848876953,
+      "sample_count": 85,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.29981255531311035,
+      "latency_seconds": 0.2999420166015625
+    },
+    {
+      "index": 86,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我发现有人用我的账号下了订单，账号可能被盗了，我应该第一时间做什么？",
+      "intent": "C1",
+      "expected_doc_ids": [
+        99,
+        95
+      ],
+      "pred_doc_ids": [
+        99,
+        95,
+        140
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.1063651442527771,
+      "p25": 0.06726381182670593,
+      "p75": 0.1895657330751419,
+      "sample_count": 86,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.2515714168548584,
+      "latency_seconds": 0.2516927719116211
+    },
+    {
+      "index": 87,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我想绑定微信登录，这样是不是可以不用每次都输密码，怎么设置？",
+      "intent": "C1",
+      "expected_doc_ids": [
+        100
+      ],
+      "pred_doc_ids": [
+        100,
+        105,
+        97
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.012116849422454834,
+      "p25": 0.06422784924507141,
+      "p75": 0.18620982766151428,
+      "sample_count": 87,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.3056776523590088,
+      "latency_seconds": 0.30586981773376465
+    },
+    {
+      "index": 88,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我的账号突然显示已被冻结，我并没有进行任何违规操作，请问账号被冻结的常见原因有哪些，申请解冻的流程是什么，大概需要多长时间才能恢复正常使用？",
+      "intent": "C1",
+      "expected_doc_ids": [
+        95
+      ],
+      "pred_doc_ids": [
+        95,
+        99,
+        136
+      ],
+      "decision": "HIGH",
+      "confidence_score": 0.21473819017410278,
+      "p25": 0.0657321959733963,
+      "p75": 0.19309866428375244,
+      "sample_count": 88,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.25841569900512695,
+      "latency_seconds": 0.2585408687591553
+    },
+    {
+      "index": 89,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我想为账号开启额外的安全保护措施，避免他人非法登录，请问平台提供哪些登录保护方式，应该在哪里设置，开启后每次登录都需要额外验证吗？",
+      "intent": "C1",
+      "expected_doc_ids": [
+        105
+      ],
+      "pred_doc_ids": [
+        105,
+        104,
+        97
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.17695462703704834,
+      "p25": 0.06723654270172119,
+      "p75": 0.19292163848876953,
+      "sample_count": 89,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.28215765953063965,
+      "latency_seconds": 0.2822878360748291
+    },
+    {
+      "index": 90,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "这个品牌的鞋子质量怎么样，值不值得买？",
+      "intent": "B1",
+      "expected_doc_ids": [
+        50
+      ],
+      "pred_doc_ids": [
+        50,
+        18,
+        2
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.007691621780395508,
+      "p25": 0.06272350251674652,
+      "p75": 0.1895657330751419,
+      "sample_count": 90,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.31671762466430664,
+      "latency_seconds": 0.31683874130249023
+    },
+    {
+      "index": 91,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "积分怎么查",
+      "intent": "C2",
+      "expected_doc_ids": [
+        106
+      ],
+      "pred_doc_ids": [
+        106,
+        115,
+        108
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.047579050064086914,
+      "p25": 0.060944437980651855,
+      "p75": 0.18620982766151428,
+      "sample_count": 91,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.39826059341430664,
+      "latency_seconds": 0.3983795642852783
+    },
+    {
+      "index": 92,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "积分会过期吗",
+      "intent": "C2",
+      "expected_doc_ids": [
+        110
+      ],
+      "pred_doc_ids": [
+        110,
+        120,
+        68
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.12410879135131836,
+      "p25": 0.06108179688453674,
+      "p75": 0.18285392224788666,
+      "sample_count": 92,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.299776554107666,
+      "latency_seconds": 0.2998969554901123
+    },
+    {
+      "index": 93,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "怎么才能升级到更高的会员等级？",
+      "intent": "C2",
+      "expected_doc_ids": [
+        107,
+        111
+      ],
+      "pred_doc_ids": [
+        107,
+        111,
+        116
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.07070887088775635,
+      "p25": 0.06121915578842163,
+      "p75": 0.17949801683425903,
+      "sample_count": 93,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.3301889896392822,
+      "latency_seconds": 0.3303227424621582
+    },
+    {
+      "index": 94,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "积分可以用来做什么？",
+      "intent": "C2",
+      "expected_doc_ids": [
+        108
+      ],
+      "pred_doc_ids": [
+        108,
+        115,
+        119
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.0698704719543457,
+      "p25": 0.06272350251674652,
+      "p75": 0.17924878746271133,
+      "sample_count": 94,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.30229687690734863,
+      "latency_seconds": 0.30243468284606934
+    },
+    {
+      "index": 95,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "会员日是什么时候，有什么特别活动？",
+      "intent": "C2",
+      "expected_doc_ids": [
+        112
+      ],
+      "pred_doc_ids": [
+        112,
+        118,
+        109
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.0807599425315857,
+      "p25": 0.06422784924507141,
+      "p75": 0.17899955809116364,
+      "sample_count": 95,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.32741808891296387,
+      "latency_seconds": 0.3275415897369385
+    },
+    {
+      "index": 96,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "生日礼包怎么领，有有效期吗？",
+      "intent": "C2",
+      "expected_doc_ids": [
+        113
+      ],
+      "pred_doc_ids": [
+        113,
+        74,
+        65
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.15869790315628052,
+      "p25": 0.0657321959733963,
+      "p75": 0.17875032871961594,
+      "sample_count": 96,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.33926939964294434,
+      "latency_seconds": 0.3394160270690918
+    },
+    {
+      "index": 97,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "会员等级会不会因为长期不消费被降级？",
+      "intent": "C2",
+      "expected_doc_ids": [
+        116
+      ],
+      "pred_doc_ids": [
+        116,
+        120,
+        65
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.0865432620048523,
+      "p25": 0.06723654270172119,
+      "p75": 0.17850109934806824,
+      "sample_count": 97,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.4181525707244873,
+      "latency_seconds": 0.4182758331298828
+    },
+    {
+      "index": 98,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我想用积分兑换优惠券，但不知道积分兑换比例是多少，哪种兑换方式最划算？",
+      "intent": "C2",
+      "expected_doc_ids": [
+        119,
+        108
+      ],
+      "pred_doc_ids": [
+        75,
+        108,
+        119
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.037221550941467285,
+      "p25": 0.06272350251674652,
+      "p75": 0.17811448127031326,
+      "sample_count": 98,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.6166741847991943,
+      "latency_seconds": 0.6168246269226074
+    },
+    {
+      "index": 99,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我是新注册用户，自动成为什么会员等级，购物积分和经验值是如何计算的？",
+      "intent": "C2",
+      "expected_doc_ids": [
+        111,
+        115,
+        107
+      ],
+      "pred_doc_ids": [
+        111,
+        107,
+        115
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.06280773878097534,
+      "p25": 0.062013447284698486,
+      "p75": 0.1777278631925583,
+      "sample_count": 99,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.40913939476013184,
+      "latency_seconds": 0.40928077697753906
+    },
+    {
+      "index": 100,
+      "phase": "fill",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我有大量即将过期的积分，想在过期之前全部兑换掉，请问积分商城有哪些兑换选项，兑换完成之后多久可以到账，如果兑换后申请退款积分会原路退回吗？",
+      "intent": "C2",
+      "expected_doc_ids": [
+        119,
+        110,
+        108
+      ],
+      "pred_doc_ids": [
+        110,
+        119,
+        108
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.027673542499542236,
+      "p25": 0.06108179688453674,
+      "p75": 0.17734124511480331,
+      "sample_count": 100,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.33492136001586914,
+      "latency_seconds": 0.33504247665405273
+    },
+    {
+      "index": 101,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "平台的高级会员相比普通会员具体多了哪些权益，专属客服服务时间是怎么安排的，是否包含节假日？",
+      "intent": "C2",
+      "expected_doc_ids": [
+        109,
+        117
+      ],
+      "pred_doc_ids": [
+        109,
+        118,
+        65
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.05026364326477051,
+      "p25": 0.06108179688453674,
+      "p75": 0.17734124511480331,
+      "sample_count": 100,
+      "recall_at_k": 0.5,
+      "vector_latency_seconds": 0.4856534004211426,
+      "latency_seconds": 0.4857974052429199
+    },
+    {
+      "index": 102,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我想投诉一下客服态度问题",
+      "intent": "D2",
+      "expected_doc_ids": [
+        146
+      ],
+      "pred_doc_ids": [
+        146,
+        136,
+        145
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.05568903684616089,
+      "p25": 0.060465067625045776,
+      "p75": 0.17734124511480331,
+      "sample_count": 100,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.40581655502319336,
+      "latency_seconds": 0.40593981742858887
+    },
+    {
+      "index": 103,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "你好",
+      "intent": "D1",
+      "expected_doc_ids": [
+        121
+      ],
+      "pred_doc_ids": [
+        128,
+        125,
+        126
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.05759018659591675,
+      "p25": 0.059285879135131836,
+      "p75": 0.17734124511480331,
+      "sample_count": 100,
+      "recall_at_k": 0.0,
+      "vector_latency_seconds": 0.27518415451049805,
+      "latency_seconds": 0.27531981468200684
+    },
+    {
+      "index": 104,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "在吗",
+      "intent": "D1",
+      "expected_doc_ids": [
+        129
+      ],
+      "pred_doc_ids": [
+        129,
+        128,
+        126
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.13884109258651733,
+      "p25": 0.059285879135131836,
+      "p75": 0.17734124511480331,
+      "sample_count": 100,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.3041362762451172,
+      "latency_seconds": 0.3042619228363037
+    },
+    {
+      "index": 105,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "谢谢你帮我解决了问题",
+      "intent": "D1",
+      "expected_doc_ids": [
+        123,
+        134
+      ],
+      "pred_doc_ids": [
+        134,
+        128,
+        126
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.005890965461730957,
+      "p25": 0.059285879135131836,
+      "p75": 0.17734124511480331,
+      "sample_count": 100,
+      "recall_at_k": 0.5,
+      "vector_latency_seconds": 0.3118712902069092,
+      "latency_seconds": 0.31199169158935547
+    },
+    {
+      "index": 106,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "hello，我想咨询一个问题",
+      "intent": "D1",
+      "expected_doc_ids": [
+        132
+      ],
+      "pred_doc_ids": [
+        121,
+        128,
+        130
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.001137375831604004,
+      "p25": 0.059285879135131836,
+      "p75": 0.17734124511480331,
+      "sample_count": 100,
+      "recall_at_k": 0.0,
+      "vector_latency_seconds": 0.33618831634521484,
+      "latency_seconds": 0.33630990982055664
+    },
+    {
+      "index": 107,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "拜拜",
+      "intent": "D1",
+      "expected_doc_ids": [
+        127
+      ],
+      "pred_doc_ids": [
+        61,
+        64,
+        127
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.01182478666305542,
+      "p25": 0.05714981257915497,
+      "p75": 0.17734124511480331,
+      "sample_count": 100,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.40975451469421387,
+      "latency_seconds": 0.40987658500671387
+    },
+    {
+      "index": 108,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "你能帮我写一篇作文吗",
+      "intent": "D1",
+      "expected_doc_ids": [
+        0
+      ],
+      "pred_doc_ids": [
+        126,
+        125,
+        128
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.0182589590549469,
+      "p25": 0.055793777108192444,
+      "p75": 0.17734124511480331,
+      "sample_count": 100,
+      "recall_at_k": 0.0,
+      "vector_latency_seconds": 0.30032849311828613,
+      "latency_seconds": 0.3004727363586426
+    },
+    {
+      "index": 109,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "你们公司是做什么的",
+      "intent": "D1",
+      "expected_doc_ids": [
+        122
+      ],
+      "pred_doc_ids": [
+        122,
+        121,
+        129
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.014594107866287231,
+      "p25": 0.055007413029670715,
+      "p75": 0.17734124511480331,
+      "sample_count": 100,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.29915690422058105,
+      "latency_seconds": 0.29929637908935547
+    },
+    {
+      "index": 110,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "你好，请问你是机器人还是真人",
+      "intent": "D1",
+      "expected_doc_ids": [
+        122
+      ],
+      "pred_doc_ids": [
+        122,
+        121,
+        128
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.0295332670211792,
+      "p25": 0.055007413029670715,
+      "p75": 0.17734124511480331,
+      "sample_count": 100,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.4253969192504883,
+      "latency_seconds": 0.42553281784057617
+    },
+    {
+      "index": 111,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "你们平台有没有做公益活动，我想参与一下",
+      "intent": "D1",
+      "expected_doc_ids": [
+        0
+      ],
+      "pred_doc_ids": [
+        118,
+        129,
+        65
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.027390480041503906,
+      "p25": 0.05228781700134277,
+      "p75": 0.17734124511480331,
+      "sample_count": 100,
+      "recall_at_k": 0.0,
+      "vector_latency_seconds": 0.3970317840576172,
+      "latency_seconds": 0.39719319343566895
+    },
+    {
+      "index": 112,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "转人工",
+      "intent": "D2",
+      "expected_doc_ids": [
+        137,
+        139
+      ],
+      "pred_doc_ids": [
+        137,
+        139,
+        144
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.01838386058807373,
+      "p25": 0.04959249496459961,
+      "p75": 0.17734124511480331,
+      "sample_count": 100,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.312239408493042,
+      "latency_seconds": 0.3123767375946045
+    },
+    {
+      "index": 113,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "客服电话多少",
+      "intent": "D2",
+      "expected_doc_ids": [
+        138
+      ],
+      "pred_doc_ids": [
+        138,
+        145,
+        147
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.06682926416397095,
+      "p25": 0.05228781700134277,
+      "p75": 0.17734124511480331,
+      "sample_count": 100,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.28011131286621094,
+      "latency_seconds": 0.2802696228027344
+    },
+    {
+      "index": 114,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我要投诉商家，他发货发错了还不给处理",
+      "intent": "D2",
+      "expected_doc_ids": [
+        140,
+        136
+      ],
+      "pred_doc_ids": [
+        140,
+        4,
+        13
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.04100930690765381,
+      "p25": 0.04959249496459961,
+      "p75": 0.17734124511480331,
+      "sample_count": 100,
+      "recall_at_k": 0.5,
+      "vector_latency_seconds": 0.31290721893310547,
+      "latency_seconds": 0.3130614757537842
+    },
+    {
+      "index": 115,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "人工客服要等很久吗，有没有别的联系方式？",
+      "intent": "D2",
+      "expected_doc_ids": [
+        150,
+        141
+      ],
+      "pred_doc_ids": [
+        150,
+        145,
+        139
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.01865065097808838,
+      "p25": 0.04959249496459961,
+      "p75": 0.17734124511480331,
+      "sample_count": 100,
+      "recall_at_k": 0.5,
+      "vector_latency_seconds": 0.35698795318603516,
+      "latency_seconds": 0.35712194442749023
+    },
+    {
+      "index": 116,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "怎么向平台反馈使用中遇到的问题？",
+      "intent": "D2",
+      "expected_doc_ids": [
+        149
+      ],
+      "pred_doc_ids": [
+        149,
+        146,
+        136
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.11502015590667725,
+      "p25": 0.05228781700134277,
+      "p75": 0.17734124511480331,
+      "sample_count": 100,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.38893556594848633,
+      "latency_seconds": 0.3891563415527344
+    },
+    {
+      "index": 117,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我遇到了一个紧急问题，商家发错货还拒绝处理，我应该通过什么渠道最快速地解决这个问题？",
+      "intent": "D2",
+      "expected_doc_ids": [
+        147,
+        140,
+        137
+      ],
+      "pred_doc_ids": [
+        140,
+        4,
+        3
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.02937406301498413,
+      "p25": 0.04959249496459961,
+      "p75": 0.17609386146068573,
+      "sample_count": 100,
+      "recall_at_k": 0.3333333333333333,
+      "vector_latency_seconds": 0.324199914932251,
+      "latency_seconds": 0.324420690536499
+    },
+    {
+      "index": 118,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我发现平台上有虚假商品信息，想举报这个商家，需要提供哪些证据，平台大概多久处理？",
+      "intent": "D2",
+      "expected_doc_ids": [
+        143,
+        140
+      ],
+      "pred_doc_ids": [
+        140,
+        143,
+        4
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.044821202754974365,
+      "p25": 0.04688958823680878,
+      "p75": 0.16661465167999268,
+      "sample_count": 100,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.2816135883331299,
+      "latency_seconds": 0.2817535400390625
+    },
+    {
+      "index": 119,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "我在平台上购买商品后遇到了问题，多次联系在线智能客服都无法解决，想转接人工客服但一直显示排队中，请问除了在线客服之外还有哪些方式可以联系到人工服务，各渠道的响应时效分别是多少？",
+      "intent": "D2",
+      "expected_doc_ids": [
+        141,
+        138,
+        142
+      ],
+      "pred_doc_ids": [
+        137,
+        150,
+        139
+      ],
+      "decision": "LOW",
+      "confidence_score": 0.008980393409729004,
+      "p25": 0.043868228793144226,
+      "p75": 0.16661465167999268,
+      "sample_count": 100,
+      "recall_at_k": 0.0,
+      "vector_latency_seconds": 0.2557363510131836,
+      "latency_seconds": 0.2558627128601074
+    },
+    {
+      "index": 120,
+      "phase": "steady",
+      "signal_type": "margin",
+      "signal_degraded": false,
+      "signal_reason": null,
+      "signal_updated_window": true,
+      "query": "明天是周末，你们的人工客服几点开始上班？",
+      "intent": "D2",
+      "expected_doc_ids": [
+        142
+      ],
+      "pred_doc_ids": [
+        142,
+        137,
+        150
+      ],
+      "decision": "MEDIUM",
+      "confidence_score": 0.15998810529708862,
+      "p25": 0.043868228793144226,
+      "p75": 0.16661465167999268,
+      "sample_count": 100,
+      "recall_at_k": 1.0,
+      "vector_latency_seconds": 0.29927825927734375,
+      "latency_seconds": 0.2994115352630615
+    }
+  ]
+}
