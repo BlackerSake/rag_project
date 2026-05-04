@@ -9,6 +9,8 @@ class State(TypedDict):
     history: List[Dict[str, str]]
     knowledge_results: List[tuple]
     highest_score: float
+    confidence_decision: Optional[str]
+    confidence_score: Optional[float]
     conversation_rounds: int
     summary: Optional[str]
     intent_id: Optional[str]

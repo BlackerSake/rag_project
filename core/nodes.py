@@ -2,7 +2,9 @@ import os
 import sys
 import asyncio
 import json
+import math
 import re
+from pathlib import Path
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from .state import State
 from .schema import (
@@ -21,6 +23,7 @@ from .intent_manager import get_intent_manager
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data.knowledge_base import KnowledgeBase
+from data.confidence import ConfidenceGate, ConfidenceHistory
 from utils.logging_config import get_logger
 from tools.manager import create_customer_service_react_agent
 
@@ -29,6 +32,33 @@ logger = get_logger(__name__)
 
 # 初始化知识库
 knowledge_base = KnowledgeBase()
+
+
+def _float_env(name: str, default: float) -> float:
+    """讀取浮點環境變量，格式錯誤時保守使用預設值。"""
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+    try:
+        value = float(raw_value)
+    except ValueError:
+        logger.warning("環境變量 %s=%s 不是有效浮點數，使用預設值 %.4f", name, raw_value, default)
+        return default
+    if not math.isfinite(value):
+        logger.warning("環境變量 %s=%s 不是有限浮點數，使用預設值 %.4f", name, raw_value, default)
+        return default
+    return value
+
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_DEFAULT_CONFIDENCE_SEED_PATH = _PROJECT_ROOT / "evaluation" / "dataset" / "confidence_margin_scores.json"
+_RRF_DEGRADED_TOP1_THRESHOLD = 0.08
+_confidence_history = ConfidenceHistory(max_size=100)
+confidence_gate_instance = ConfidenceGate(
+    history=_confidence_history,
+    fallback_p25=_float_env("CONFIDENCE_MARGIN_FALLBACK_P25", 0.03),
+    fallback_p75=_float_env("CONFIDENCE_MARGIN_FALLBACK_P75", 0.12),
+)
 
 REACT_TOOL_SYSTEM_PROMPT = (
     "你是智能客服的有狀態 ReAct 工具調度節點。你會收到本輪所有子問題、"
@@ -102,6 +132,74 @@ async def get_manager():
     return intent_manager
 
 
+def _resolve_confidence_seed_path(filepath: str | os.PathLike | None = None) -> Path:
+    """解析置信度冷啟動資料路徑，支援環境變量與相對路徑。"""
+    raw_path = filepath or os.getenv("CONFIDENCE_OFFLINE_PATH")
+    path = Path(raw_path) if raw_path else _DEFAULT_CONFIDENCE_SEED_PATH
+    if not path.is_absolute():
+        path = _PROJECT_ROOT / path
+    return path
+
+
+def _extract_offline_confidence_records(payload: dict) -> list:
+    """從離線評測JSON取出 records 陣列，兼容只輸出 margin 子報告的格式。"""
+    records = payload.get("records")
+    if isinstance(records, list):
+        return records
+
+    margin_report = payload.get("margin")
+    if isinstance(margin_report, dict) and isinstance(margin_report.get("records"), list):
+        return margin_report["records"]
+
+    return []
+
+
+def seed_confidence_from_offline(filepath: str | os.PathLike | None = None) -> int:
+    """使用離線 MARGIN 分數預填 confidence gate 滑動窗口。"""
+    path = _resolve_confidence_seed_path(filepath)
+    if not path.exists():
+        logger.info("confidence gate 冷啟動資料不存在，略過預填: %s", path)
+        return 0
+
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            payload = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("confidence gate 冷啟動資料讀取失敗: %s, error=%s", path, exc)
+        return 0
+
+    if not isinstance(payload, dict):
+        logger.warning("confidence gate 冷啟動資料格式錯誤，根節點必須是 object: %s", path)
+        return 0
+
+    records = _extract_offline_confidence_records(payload)
+    loaded_count = 0
+    skipped_count = 0
+    for record in records:
+        if not isinstance(record, dict) or "confidence_score" not in record:
+            skipped_count += 1
+            continue
+
+        try:
+            _confidence_history.update(record["confidence_score"])
+            loaded_count += 1
+        except (TypeError, ValueError) as exc:
+            skipped_count += 1
+            logger.debug("略過無效 confidence_score: record=%s, error=%s", record, exc)
+
+    thresholds = confidence_gate_instance.calibrate_thresholds()
+    logger.info(
+        "confidence gate 冷啟動完成: path=%s loaded=%d skipped=%d p25=%.4f p75=%.4f sample=%d",
+        path,
+        loaded_count,
+        skipped_count,
+        thresholds.p25,
+        thresholds.p75,
+        thresholds.sample_count,
+    )
+    return loaded_count
+
+
 async def detect_topic(state: State) -> State:
     """检测对话主题"""
     # 获取最新消息
@@ -165,6 +263,148 @@ def _fallback_judge_items(candidate_by_id: dict[str, tuple[str, str, float]]) ->
     ]
 
 
+_LOW_CONFIDENCE_INTENT_SCORE = 0.55
+_DECOMPOSITION_TOPIC_KEYWORDS = {
+    "logistics": ["快递", "快遞", "物流", "包裹", "单号", "單號", "丢", "丟", "没到", "未到", "到哪", "哪了"],
+    "return": ["退货", "退貨", "换货", "換貨", "退换", "退換", "售后", "售後"],
+    "refund": ["退款", "退钱", "退錢", "到账", "到賬", "多久", "几天", "幾天"],
+    "repair": ["维修", "維修", "修理", "保修", "质保", "質保"],
+    "order": ["订单", "訂單", "商品", "商家", "平台"],
+}
+
+
+def _candidate_text(candidate_id: str, candidate_by_id: dict[str, tuple[str, str, float]]) -> str:
+    """取得候選原文，缺失時回傳空字串。"""
+    candidate = candidate_by_id.get(candidate_id)
+    return str(candidate[0]) if candidate else ""
+
+
+def _candidate_score(candidate_id: str, candidate_by_id: dict[str, tuple[str, str, float]]) -> float:
+    """取得候選向量意圖分數，格式異常時視為低置信度。"""
+    candidate = candidate_by_id.get(candidate_id)
+    if not candidate:
+        return 0.0
+    try:
+        score = float(candidate[2])
+    except (TypeError, ValueError):
+        return 0.0
+    return score if math.isfinite(score) else 0.0
+
+
+def _candidate_intent(candidate_id: str, candidate_by_id: dict[str, tuple[str, str, float]]) -> str:
+    """取得候選向量意圖。"""
+    candidate = candidate_by_id.get(candidate_id)
+    return str(candidate[1]).strip() if candidate else ""
+
+
+def _decomposition_identifiers(text: str) -> set[str]:
+    """抽取單號、訂單號等高置信識別符。"""
+    normalized = str(text).lower()
+    return set(re.findall(r"[a-z]{0,4}\d{3,}[a-z0-9]*|\d{3,}", normalized))
+
+
+def _decomposition_topics(text: str) -> set[str]:
+    """以少量業務詞判斷候選片段所屬語義主題。"""
+    return {
+        topic
+        for topic, keywords in _DECOMPOSITION_TOPIC_KEYWORDS.items()
+        if any(keyword in text for keyword in keywords)
+    }
+
+
+def _decomposition_terms(text: str) -> set[str]:
+    """建立輕量文字特徵，用於兜底時尋找最相近的已裁決項。"""
+    normalized = re.sub(r"\s+", "", str(text).lower())
+    terms = _decomposition_identifiers(normalized) | _decomposition_topics(normalized)
+    chinese_or_word = re.findall(r"[\u4e00-\u9fff]{2,}|[a-z]{2,}", normalized)
+    terms.update(chinese_or_word)
+    if len(normalized) >= 2:
+        terms.update(normalized[i:i + 2] for i in range(len(normalized) - 1))
+    elif normalized:
+        terms.add(normalized)
+    return terms
+
+
+def _has_semantic_overlap(left_text: str, right_text: str) -> bool:
+    """判斷兩段候選文本是否應視為同一業務需求的補充。"""
+    left_ids = _decomposition_identifiers(left_text)
+    right_ids = _decomposition_identifiers(right_text)
+    if left_ids and right_ids and left_ids & right_ids:
+        return True
+
+    left_topics = _decomposition_topics(left_text)
+    right_topics = _decomposition_topics(right_text)
+    return bool(left_topics and right_topics and left_topics & right_topics)
+
+
+def _is_semantically_incomplete_fragment(text: str) -> bool:
+    """識別不應被單獨補回的語義殘片。"""
+    normalized = re.sub(r"[\s，。！？?!；;,.]+", "", str(text))
+    if not normalized:
+        return True
+    if _decomposition_identifiers(normalized) or _decomposition_topics(normalized):
+        return False
+
+    filler_patterns = [
+        r"^(对了|對了|然后|然後|还有|還有|另外|顺便|順便)$",
+        r"^(是不是|可以吗|可以嗎|怎么办|怎麼辦)$",
+        r"^(好的|谢谢|謝謝|知道了|明白|嗯|哦)$",
+        r"^(这个|這個|那个|那個|我的|它|他|她)$",
+    ]
+    return len(normalized) <= 4 or any(re.search(pattern, normalized) for pattern in filler_patterns)
+
+
+def _item_text(item: dict, candidate_by_id: dict[str, tuple[str, str, float]]) -> str:
+    """合併 item 內候選原文，供相似度與歸併判斷使用。"""
+    candidate_ids = item.get("candidate_ids", [])
+    if not isinstance(candidate_ids, list):
+        return ""
+    return "，".join(_candidate_text(str(candidate_id).strip(), candidate_by_id) for candidate_id in candidate_ids)
+
+
+def _text_similarity(left_text: str, right_text: str) -> float:
+    """使用 Jaccard 特徵重疊估算文本相近程度。"""
+    left_terms = _decomposition_terms(left_text)
+    right_terms = _decomposition_terms(right_text)
+    if not left_terms or not right_terms:
+        return 0.0
+    return len(left_terms & right_terms) / len(left_terms | right_terms)
+
+
+def _merge_missed_candidate(
+    sanitized_items: list[dict],
+    candidate_id: str,
+    candidate_by_id: dict[str, tuple[str, str, float]],
+) -> bool:
+    """若遺漏片段與已裁決 item 屬於同一語義需求，直接歸併。"""
+    missed_text = _candidate_text(candidate_id, candidate_by_id)
+    for item in sanitized_items:
+        if _has_semantic_overlap(missed_text, _item_text(item, candidate_by_id)):
+            item["candidate_ids"].append(candidate_id)
+            reason = str(item.get("reason", "")).strip()
+            item["reason"] = f"{reason}；遺漏歸併" if reason else "遺漏歸併"
+            logger.info("裁決遺漏candidate_id已歸併: %s -> %s", candidate_id, item["candidate_ids"])
+            return True
+    return False
+
+
+def _closest_item_intent(
+    sanitized_items: list[dict],
+    candidate_id: str,
+    candidate_by_id: dict[str, tuple[str, str, float]],
+) -> str:
+    """為低置信度遺漏片段尋找文本最接近的已裁決意圖。"""
+    missed_text = _candidate_text(candidate_id, candidate_by_id)
+    best_intent = ""
+    best_score = 0.0
+    for item in sanitized_items:
+        similarity = _text_similarity(missed_text, _item_text(item, candidate_by_id))
+        if similarity > best_score:
+            best_score = similarity
+            best_intent = str(item.get("intent_id", "")).strip()
+    return best_intent if best_score > 0 else ""
+
+
 def _sanitize_judge_items(
     raw_items: list,
     candidate_by_id: dict[str, tuple[str, str, float]],
@@ -210,13 +450,38 @@ def _sanitize_judge_items(
 
     missed_ids = [candidate_id for candidate_id in candidate_by_id if candidate_id not in used_ids]
     for candidate_id in missed_ids:
-        _, intent_id, _ = candidate_by_id[candidate_id]
-        logger.warning("裁決遗漏candidate_id，使用兜底补回: %s", candidate_id)
+        if _merge_missed_candidate(sanitized_items, candidate_id, candidate_by_id):
+            used_ids.add(candidate_id)
+            continue
+
+        missed_text = _candidate_text(candidate_id, candidate_by_id)
+        if _is_semantically_incomplete_fragment(missed_text):
+            logger.info("裁決遺漏candidate_id為語義殘片，已忽略: %s", candidate_id)
+            used_ids.add(candidate_id)
+            continue
+
+        intent_id = _candidate_intent(candidate_id, candidate_by_id)
+        score = _candidate_score(candidate_id, candidate_by_id)
+        reason = "兜底-低置信度"
+
+        if score < _LOW_CONFIDENCE_INTENT_SCORE:
+            corrected_intent = _closest_item_intent(sanitized_items, candidate_id, candidate_by_id)
+            if corrected_intent:
+                intent_id = corrected_intent
+                reason = "低置信度跨意圖修正"
+
+        if valid_intents and intent_id not in valid_intents:
+            logger.warning("遺漏candidate_id的意圖無效，已忽略: %s -> %s", candidate_id, intent_id)
+            used_ids.add(candidate_id)
+            continue
+
+        logger.warning("裁決遺漏candidate_id，使用防禦性兜底: %s, intent=%s, reason=%s", candidate_id, intent_id, reason)
         sanitized_items.append({
             "candidate_ids": [candidate_id],
             "intent_id": intent_id,
-            "reason": "裁决遗漏兜底",
+            "reason": reason,
         })
+        used_ids.add(candidate_id)
 
     return sanitized_items
 
@@ -707,11 +972,101 @@ async def retrieve_knowledge(state: State) -> State:
         "intent_id": intent_id
     }
 
+
+async def confidence_gate(state: State) -> State:
+    """根據檢索分數的 MARGIN 信號決定回答、提示或澄清路由。"""
+    knowledge_results = state.get("knowledge_results") or []
+
+    if not knowledge_results:
+        decision = confidence_gate_instance.decide(0.0)
+        logger.info(
+            "confidence_gate: margin=%.4f decision=%s p25=%.4f p75=%.4f sample=%d reason=empty_results",
+            decision["confidence_score"],
+            "LOW",
+            decision["p25"],
+            decision["p75"],
+            decision["sample_count"],
+        )
+        return {
+            "confidence_decision": "LOW",
+            "confidence_score": 0.0,
+        }
+
+    try:
+        top1_score = float(knowledge_results[0][1])
+    except (TypeError, ValueError, IndexError) as exc:
+        logger.warning("confidence_gate 讀取 Top-1 分數失敗，轉入 LOW: %s", exc)
+        return {
+            "confidence_decision": "LOW",
+            "confidence_score": 0.0,
+        }
+
+    if not math.isfinite(top1_score):
+        logger.warning("confidence_gate Top-1 分數不是有限值，轉入 LOW: %s", top1_score)
+        return {
+            "confidence_decision": "LOW",
+            "confidence_score": 0.0,
+        }
+
+    if top1_score < _RRF_DEGRADED_TOP1_THRESHOLD:
+        placeholder_score = _confidence_history.update(confidence_gate_instance.fallback_p25)
+        thresholds = confidence_gate_instance.calibrate_thresholds()
+        logger.info(
+            "confidence_gate: margin=%.4f decision=%s p25=%.4f p75=%.4f sample=%d reason=rrf_degraded top1=%.4f",
+            placeholder_score,
+            "MEDIUM",
+            thresholds.p25,
+            thresholds.p75,
+            thresholds.sample_count,
+            top1_score,
+        )
+        return {
+            "confidence_decision": "MEDIUM",
+            "confidence_score": placeholder_score,
+        }
+
+    try:
+        top2_score = float(knowledge_results[1][1]) if len(knowledge_results) >= 2 else 0.0
+    except (TypeError, ValueError, IndexError) as exc:
+        logger.warning("confidence_gate 讀取 Top-2 分數失敗，使用 0.0: %s", exc)
+        top2_score = 0.0
+
+    if not math.isfinite(top2_score):
+        logger.warning("confidence_gate Top-2 分數不是有限值，使用 0.0: %s", top2_score)
+        top2_score = 0.0
+
+    margin = max(top1_score - top2_score, 0.0)
+    _confidence_history.update(margin)
+    decision = confidence_gate_instance.decide(margin)
+    logger.info(
+        "confidence_gate: margin=%.4f decision=%s p25=%.4f p75=%.4f sample=%d top1=%.4f top2=%.4f",
+        decision["confidence_score"],
+        decision["decision"],
+        decision["p25"],
+        decision["p75"],
+        decision["sample_count"],
+        top1_score,
+        top2_score,
+    )
+
+    return {
+        "confidence_decision": decision["decision"],
+        "confidence_score": decision["confidence_score"],
+    }
+
+
 async def direct_answer(state: State) -> State:
     """直接回答节点"""
     # 构建提示
     knowledge_context = "\n".join([item[0] for item in state["knowledge_results"]]) if state.get("knowledge_results") else "无相关知识"
     summary = state.get("summary", "无")
+    confidence_decision = state.get("confidence_decision", "HIGH")
+    if confidence_decision == "MEDIUM":
+        knowledge_context = (
+            f"{knowledge_context}\n"
+            "提示：以上知識庫內容的匹配置信度為中等，回答時請標示「僅供參考」，"
+            "並避免把不確定資訊說成已確認事實。"
+        )
 
     # 获取任务分发的处理结果
     processed_results = state.get("processed_results", [])
