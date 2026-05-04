@@ -34,12 +34,21 @@ templates = Jinja2Templates(directory=templates_dir)
 import uvicorn
 from utils.logging_config import get_logger
 from state_machine import run_chat
+from core.nodes import seed_confidence_from_offline
 
 # 获取日志记录器
 logger = get_logger(__name__)
 
 print(f"Templates directory: {templates_dir}")
 print(f"Templates directory exists: {os.path.exists(templates_dir)}")
+
+
+@app.on_event("startup")
+async def startup_event():
+    """啟動時預填 confidence gate 的 MARGIN 歷史窗口。"""
+    loaded_count = seed_confidence_from_offline()
+    logger.info("confidence gate startup seed loaded=%d", loaded_count)
+
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
