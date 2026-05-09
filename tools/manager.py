@@ -3,7 +3,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.tools import BaseTool
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 
 from utils.logging_config import get_logger
 
@@ -103,7 +103,7 @@ def create_customer_service_react_agent(
 ):
     """建立 ReAct agent，供需要 ReAct 鏈路的入口使用。"""
     tools = get_tools()
-    agent = create_react_agent(llm, tools=tools, prompt=system_prompt)
+    agent = create_agent(llm, tools=tools, prompt=system_prompt)
     logger.info(
         "建立 ReAct agent: tools=%s, logging=%s, has_system_prompt=%s",
         [tool.name for tool in tools],
