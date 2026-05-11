@@ -1,0 +1,7 @@
+# 意图门控冷启动阈值，可通过环境变量 INTENT_GATE_* 覆盖。
+score_high: 0.6192
+score_low: 0.2627
+margin_high: 0.1011
+margin_low: 0.015
+min_intent_samples: 20
+confusion_groups: []
