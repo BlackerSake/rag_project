@@ -14,6 +14,8 @@ from pymilvus import Collection, MilvusClient, connections, utility
 # 添加根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pathlib import Path
+from intent import get_dynamic_intent_baseline, get_intent_confidence_history, intent_gate_decide, load_intent_baseline
+from intent.gate import normalize_intent_candidates
 
 # 加载环境变量
 env_path = Path(__file__).parent.parent / '.env'
@@ -139,6 +141,65 @@ class IntentManager:
             parsed_results.append((result.get("entity", {}), result.get("distance", 0.0)))
 
         return parsed_results
+
+    async def search_intent_candidates(self, query, k=3):
+        """
+        异步召回意图候选。
+
+        参数:
+            query: 用户查询文本
+            k: 返回前k个候选
+
+        返回:
+            标准化后的Top-k意图候选列表
+        """
+        if not self.vector_store:
+            print("向量存储未初始化")
+            return []
+
+        try:
+            loop = asyncio.get_event_loop()
+            results = await loop.run_in_executor(
+                None,
+                self._client_search_intents,
+                query,
+                k
+            )
+            return normalize_intent_candidates(results)
+        except Exception as e:
+            print(f"召回意图候选失败: {str(e)}")
+            return []
+
+    async def match_intent_with_gate(self, query, k=3):
+        """
+        使用IntentGate匹配意图。
+
+        参数:
+            query: 用户查询文本
+            k: 返回前k个候选
+
+        返回:
+            包含候选、分数、margin、置信等级和动作的门控决策
+        """
+        candidates = await self.search_intent_candidates(query, k)
+        baseline = load_intent_baseline()
+        top_intent_id = candidates[0]["intent_id"] if candidates else None
+        dynamic_baseline = get_dynamic_intent_baseline(
+            intent_id=top_intent_id,
+            baseline=baseline,
+            history=get_intent_confidence_history(),
+        )
+        decision = intent_gate_decide(query, candidates, dynamic_baseline)
+
+        print(
+            "意图门控: "
+            f"{decision.get('intent_id')} "
+            f"(score={decision.get('intent_score', 0.0):.4f}, "
+            f"margin={decision.get('intent_margin', 0.0):.4f}, "
+            f"level={decision.get('intent_confidence_level')}, "
+            f"action={decision.get('intent_gate_action')})"
+        )
+        return decision
         
     async def initialize(self):
         """异步初始化"""
@@ -291,34 +352,12 @@ class IntentManager:
         返回:
             匹配度最高的intent_id和相似度分数
         """
-        try:
-            if not self.vector_store:
-                print("向量存储未初始化")
-                return None, 0.0
-            
-            # 异步搜索意图向量
-            loop = asyncio.get_event_loop()
-            results = await loop.run_in_executor(
-                None,
-                self._client_search_intents,
-                query,
-                k
-            )
-            
-            if results:
-                # 获取匹配度最高的结果
-                best_result = max(results, key=lambda x: x[1])
-                intent_id = best_result[0].get('intent_id')
-                score = best_result[1]
-                
-                print(f"匹配意图: {intent_id} (相似度: {score:.4f})")
-                return intent_id, score
-            
-            return None, 0.0
-            
-        except Exception as e:
-            print(f"匹配意图失败: {str(e)}")
-            return None, 0.0
+        decision = await self.match_intent_with_gate(query, k)
+        intent_id = decision.get("intent_id")
+        score = decision.get("intent_score", 0.0)
+        if decision.get("intent_gate_action") == "FALLBACK":
+            return "D2", score
+        return intent_id, score
     
     def get_intent_info(self, intent_id):
         """

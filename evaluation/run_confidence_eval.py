@@ -21,7 +21,8 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s',
                     handlers = [
                         logging.FileHandler(log_dir / "confidence_eval.log",encoding="utf-8"),
-                        ]
+                        ],
+                    force=True,
                     )
 
 from dotenv import load_dotenv

@@ -24,6 +24,14 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data.knowledge_base import KnowledgeBase
 from data.confidence import ConfidenceGate, ConfidenceHistory
+from intent import (
+    add_to_annotation_pool,
+    detect_strong_negative_feedback,
+    log_intent_gate_decision,
+    route_after_intent_gate,
+    update_intent_confidence_history,
+    write_intent_gate_to_state,
+)
 from utils.logging_config import get_logger
 from tools.manager import create_customer_service_react_agent
 
@@ -132,6 +140,42 @@ async def get_manager():
     return intent_manager
 
 
+def _aggregate_intent_gate_decisions(user_query: str, gate_results: list[dict]) -> dict:
+    """聚合单个或多个子问题的意图门控结果。"""
+    decisions = [
+        item.get("decision", item)
+        for item in gate_results
+        if isinstance(item, dict) and isinstance(item.get("decision", item), dict)
+    ]
+    if not decisions:
+        decision = {
+            "query": user_query,
+            "intent_candidates": [],
+            "intent_id": None,
+            "intent_score": 0.0,
+            "intent_margin": 0.0,
+            "intent_confidence_level": "LOW",
+            "intent_gate_action": "FALLBACK",
+            "intent_gate_reason": "no_gate_decision",
+            "clarification_question": "我还不确定你的问题类型，可以再补充一下你想咨询的内容吗？",
+        }
+    else:
+        decision = next((item for item in decisions if item.get("intent_gate_action") == "FALLBACK"), None)
+        if decision is None:
+            decision = next((item for item in decisions if item.get("intent_gate_action") == "CLARIFY"), None)
+        if decision is None:
+            decision = decisions[0]
+
+    state_update = write_intent_gate_to_state({}, decision)
+    state_update["query"] = user_query
+    state_update["intent_candidate_results"] = gate_results
+    state_update["final_route"] = route_after_intent_gate(state_update)
+
+    log_intent_gate_decision(state_update)
+    update_intent_confidence_history(state_update)
+    return state_update
+
+
 def _resolve_confidence_seed_path(filepath: str | os.PathLike | None = None) -> Path:
     """解析置信度冷啟動資料路徑，支援環境變量與相對路徑。"""
     raw_path = filepath or os.getenv("CONFIDENCE_OFFLINE_PATH")
@@ -210,19 +254,19 @@ async def detect_topic(state: State) -> State:
     # 获取异步的意图管理器
     manager = await get_manager()
 
-    # 意图匹配
-    intent_id, score = await manager.match_intent(latest_message.content)
-    logger.info(f"意图匹配: {intent_id} (相似度: {score:.4f})")
-    # 阈值兜底逻辑
-    if score < 0.35:
-        intent_id = "D1"
-        logger.info(f"匹配分数 {score:.4f} 过低，归类为闲聊")
-
-    return {
-        "current_topic": intent_id,
-        "intent_id": intent_id,
-        "intent_score": score
-    }
+    decision = await manager.match_intent_with_gate(latest_message.content)
+    state_update = _aggregate_intent_gate_decisions(
+        str(latest_message.content),
+        [{"sub_question": str(latest_message.content), "decision": decision}],
+    )
+    logger.info(
+        "意图门控结果: intent=%s, score=%.4f, margin=%.4f, action=%s",
+        state_update.get("intent_id"),
+        state_update.get("intent_score", 0.0),
+        state_update.get("intent_margin", 0.0),
+        state_update.get("intent_gate_action"),
+    )
+    return state_update
 
 def _extract_json_object(text: str) -> dict:
     """从LLM输出中提取JSON对象，兼容误包裹的代码块。"""
@@ -580,25 +624,61 @@ async def decompose_query(state: State) -> State:
         "Decomposer Node: 分析查询 - %s, summary: %s, 历史消息数: %s",
         user_query, summary, len(messages)
     )
+    if detect_strong_negative_feedback(user_query):
+        add_to_annotation_pool(state, user_query)
+        logger.info("检测到强负反馈，已写入意图标注池")
 
     try:
         # 第一步：直接对用户输入切句，不再检索向量库
         sentences = split_user_input(user_query)
         logger.info(f"句子拆分结果: {sentences}")
 
-        # 第二步：对每个句子做意图匹配
+        # 第二步：对每个句子召回Top-k候选并执行IntentGate
         manager = await get_manager()
         sub_question_intents = []
+        intent_gate_results = []
 
         for i, sent in enumerate(sentences, 1):
-            intent_id, score = await manager.match_intent(sent)
+            decision = await manager.match_intent_with_gate(sent)
+            intent_id = decision.get("intent_id")
+            score = decision.get("intent_score", 0.0)
             sub_question_intents.append((sent, intent_id, score))
-            logger.info(f"  子问题{i}: {sent} -> 意图: {intent_id} (相似度: {score:.4f})")
+            intent_gate_results.append({
+                "sub_question": sent,
+                "decision": decision,
+            })
+            logger.info(
+                "  子问题%d: %s -> 意图: %s (相似度: %.4f, margin: %.4f, action: %s)",
+                i,
+                sent,
+                intent_id,
+                score,
+                decision.get("intent_margin", 0.0),
+                decision.get("intent_gate_action"),
+            )
 
         candidate_by_id = {
             f"q{i}": (sub_q, intent_id, score)
             for i, (sub_q, intent_id, score) in enumerate(sub_question_intents, 1)
         }
+        state_update = _aggregate_intent_gate_decisions(user_query, intent_gate_results)
+
+        if state_update.get("intent_gate_action") == "FALLBACK":
+            judge_items = _fallback_judge_items(candidate_by_id)
+            logger.info(
+                "IntentGate触发兜底，跳过LLM查询拆解决策: action=%s, reason=%s",
+                state_update.get("intent_gate_action"),
+                state_update.get("intent_gate_reason"),
+            )
+            return {
+                **state_update,
+                "sub_questions": [item[0] for item in sub_question_intents],
+                "is_complex_query": len(sub_question_intents) > 1,
+                "multi_intent_results": sub_question_intents,
+                "judge_items": judge_items,
+                "candidate_by_id": candidate_by_id,
+                "decompose_skipped": False,
+            }
 
         # 第三步：由LLM基于候选子问题和意图目录裁决保留/去重/合并关系
         try:
@@ -617,6 +697,7 @@ async def decompose_query(state: State) -> State:
         logger.info("查询拆解完成: %s 个候选，%s 个裁决item，后续交由 llm_rewrite 展开重写", len(candidate_by_id), len(judge_items))
 
         return {
+            **state_update,
             "sub_questions": [item[0] for item in sub_question_intents],
             "is_complex_query": len(sub_question_intents) > 1,
             "multi_intent_results": sub_question_intents,
@@ -633,8 +714,30 @@ async def decompose_query(state: State) -> State:
             "multi_intent_results": [],
             "judge_items": [],
             "candidate_by_id": {},
+            "intent_candidate_results": [],
             "decompose_skipped": True
         }
+
+
+async def intent_retrieval_node(state: State) -> State:
+    """意图候选召回节点，兼容现有查询拆解链路。"""
+    return await decompose_query(state)
+
+
+async def intent_gate_node(state: State) -> State:
+    """意图门控节点，缺少门控结果时补充执行一次判断。"""
+    if state.get("intent_gate_action"):
+        return {}
+
+    messages = state.get("messages", [])
+    latest_message = messages[-1] if messages else HumanMessage(content="")
+    user_query = str(getattr(latest_message, "content", ""))
+    manager = await get_manager()
+    decision = await manager.match_intent_with_gate(user_query)
+    return _aggregate_intent_gate_decisions(
+        user_query,
+        [{"sub_question": user_query, "decision": decision}],
+    )
 
 
 def _expand_judge_candidates(
@@ -872,8 +975,8 @@ async def retrieve_knowledge_multi(state: State) -> State:
             seen.add(content)
             unique_knowledge.append((content, score))
 
-    # 取Top3
-    final_knowledge = unique_knowledge[:3]
+    # 聚合后的多子问题结果需要按全局分数排序，否则 confidence_gate 会读取到错误的Top1/Top2。
+    final_knowledge = sorted(unique_knowledge, key=lambda item: item[1], reverse=True)[:3]
 
     logger.info(f"多意图检索完成: 共 {len(final_knowledge)} 条唯一记录，最高分数: {highest_score:.4f}")
 
@@ -1131,6 +1234,29 @@ async def clarify_question(state: State) -> State:
     """澄清提问节点（含缺参澄清）"""
     processed_results = state.get("processed_results", [])
     messages = state.get("messages", [])
+    intent_clarification = str(state.get("clarification_question") or "").strip()
+
+    if (
+        state.get("intent_gate_action") == "CLARIFY"
+        and state.get("confidence_decision") is None
+        and intent_clarification
+    ):
+        user_message_content = ""
+        for msg in reversed(messages):
+            if isinstance(msg, HumanMessage):
+                user_message_content = msg.content
+                break
+
+        ai_message = AIMessage(content=intent_clarification)
+        logger.info("IntentGate澄清提问生成: %s", intent_clarification)
+        return {
+            "messages": [ai_message],
+            "history": state.get("history", []) + [{
+                "user": user_message_content,
+                "assistant": intent_clarification,
+                "topic": state.get("current_topic", "")
+            }]
+        }
 
     # 收集缺参信息，去重保序
     clarification_messages = list(dict.fromkeys(
@@ -1565,7 +1691,9 @@ async def task_dispatcher(state: State) -> State:
         manager = await get_manager()
         multi_intent_results = []
         for sub_q in sub_questions:
-            intent_id, score = await manager.match_intent(sub_q)
+            decision = await manager.match_intent_with_gate(sub_q)
+            intent_id = decision.get("intent_id")
+            score = decision.get("intent_score", 0.0)
             multi_intent_results.append((sub_q, intent_id, score))
 
     logger.info(f"任务分发：处理 {len(sub_questions)} 个子问题")
