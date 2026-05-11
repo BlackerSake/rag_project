@@ -19,6 +19,10 @@ from .schema import (
 from .models import model
 from .intent_manager import get_intent_manager
 from .summary import compress_context
+from .structured_output import (
+    fallback_judge_items as structured_fallback_judge_items,
+    parse_and_validate_judge_output_async,
+)
 
 # 添加根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -297,15 +301,8 @@ def _build_intent_catalog(manager) -> str:
 
 
 def _fallback_judge_items(candidate_by_id: dict[str, tuple[str, str, float]]) -> list[dict]:
-    """LLM裁決失敗時保守兜底：每個候選句獨立保留，避免合併造成信息丟失。"""
-    return [
-        {
-            "candidate_ids": [candidate_id],
-            "intent_id": intent_id,
-            "reason": "规则兜底保留",
-        }
-        for candidate_id, (_, intent_id, _) in candidate_by_id.items()
-    ]
+    """LLM 裁决失败时保守兜底：每个候选句独立保留，避免合并造成信息丢失。"""
+    return structured_fallback_judge_items(candidate_by_id)
 
 
 _LOW_CONFIDENCE_INTENT_SCORE = 0.55
@@ -565,12 +562,7 @@ async def _judge_final_sub_questions(
     content = response.content if hasattr(response, "content") else str(response)
     logger.info("LLM查询拆解裁决原始输出: %s", content)
 
-    payload = _extract_json_object(content)
-    items = payload.get("items")
-    if not isinstance(items, list):
-        raise ValueError("LLM查询拆解输出缺少items数组")
-
-    judge_items = _sanitize_judge_items(items, candidate_by_id, valid_intents)
+    judge_items = await parse_and_validate_judge_output_async(content, candidate_by_id, valid_intents)
     if not judge_items:
         raise ValueError("LLM查询拆解输出无有效子问题")
     return judge_items
