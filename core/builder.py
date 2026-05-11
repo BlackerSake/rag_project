@@ -3,8 +3,8 @@
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 from .state import State
-from .nodes import retrieve_knowledge, retrieve_knowledge_multi, confidence_gate, direct_answer, clarify_question, fallback_response, summarize_conversation, increment_rounds, chat_response, decompose_query, intent_gate_node, llm_rewrite, task_dispatcher
-from .edges import check_conversation_rounds
+from .nodes import retrieve_knowledge, retrieve_knowledge_multi, confidence_gate, direct_answer, clarify_question, fallback_response, context_compression_node, increment_rounds, chat_response, decompose_query, intent_gate_node, llm_rewrite, task_dispatcher
+from .edges import route_after_context_check
 from intent import route_after_intent_gate
 
 # 创建状态图
@@ -22,9 +22,9 @@ graph.add_node("direct_answer", direct_answer)  # 直接回答节点
 graph.add_node("clarify_question", clarify_question)  # 澄清提问节点
 graph.add_node("fallback_response", fallback_response)  # 兜底回复节点
 graph.add_node("chat_response", chat_response)  # 闲聊回复节点
-graph.add_node("summarize", summarize_conversation)  # 对话总结节点
+graph.add_node("context_compression", context_compression_node)  # 上下文压缩节点
 graph.add_node("increment_rounds", increment_rounds)  # 增加对话轮数节点
-graph.add_node("check_rounds", check_conversation_rounds)  # 检查对话轮数节点
+graph.add_node("check_rounds", route_after_context_check)  # 检查上下文压缩节点
 
 # 添加边
 # 新的入口：查询拆解
@@ -125,15 +125,15 @@ graph.add_edge("chat_response", "increment_rounds")
 # 检查对话轮数
 graph.add_conditional_edges(
     "increment_rounds",
-    check_conversation_rounds,
+    route_after_context_check,
     {
-        "summarize": "summarize",
+        "compress": "context_compression",
         "end": END
     }
 )
 
-# 总结后结束对话
-graph.add_edge("summarize", END)
+# 压缩后结束对话
+graph.add_edge("context_compression", END)
 
 # 创建checkpointer
 memory = MemorySaver()

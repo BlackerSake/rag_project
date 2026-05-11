@@ -18,6 +18,7 @@ from .schema import (
 )
 from .models import model
 from .intent_manager import get_intent_manager
+from .summary import compress_context
 
 # 添加根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -1422,56 +1423,10 @@ async def fallback_response(state: State) -> State:
             "history": state.get("history", []) + [{"user": user_message_content, "assistant": error_message, "topic": state.get("current_topic", "")}]
         }
 
-async def summarize_conversation(state: State) -> State:
-    """摘要压缩节点"""
-    logger.info("进入摘要压缩节点")
-
-    # 提取前10轮对话
-    messages = state.get("messages", [])
-    if len(messages) > 10:
-        conversation_to_summarize = messages[:10]
-    else:
-        conversation_to_summarize = messages
-
-    # 构建对话内容
-    conversation_text = ""
-    for msg in conversation_to_summarize:
-        if isinstance(msg, HumanMessage):
-            conversation_text += f"用户: {msg.content}\n"
-        elif isinstance(msg, AIMessage):
-            conversation_text += f"助手: {msg.content}\n"
-
-    try:
-        # 生成总结，使用流式输出
-        chain = summarization_prompt | model
-        summary = ""
-        async for chunk in chain.astream({"conversation": conversation_text}):
-            # 从AIMessageChunk中提取content属性
-            summary += chunk.content
-
-        # 保留近5轮对话
-        if len(messages) > 10:
-            remaining_messages = messages[10:]
-        else:
-            remaining_messages = messages
-
-        logger.info(f"对话总结生成: {summary}")
-        logger.info(f"保留近5轮对话，共 {len(remaining_messages)} 条")
-
-        return {
-            "messages": remaining_messages,
-            "summary": summary,
-            "conversation_rounds": 0  # 重置对话轮数
-        }
-    except Exception as e:
-        logger.error(f"对话总结生成失败: {str(e)}")
-        # 发生异常时返回默认总结
-        default_summary = "对话总结生成失败"
-        return {
-            "messages": messages,
-            "summary": default_summary,
-            "conversation_rounds": 0  # 重置对话轮数
-        }
+async def context_compression_node(state: State) -> State:
+    """上下文压缩薄节点，仅负责调用 summary 模块。"""
+    logger.info("进入上下文压缩节点")
+    return await compress_context(state, summarization_prompt, model)
 
 async def increment_rounds(state: State) -> State:
     """增加对话轮数"""

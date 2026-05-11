@@ -1,6 +1,7 @@
 import os
 import sys
 from .state import State
+from .summary import should_compress_context
 
 # 添加根目录到Python路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -57,19 +58,23 @@ def should_end_conversation(state: State) -> bool:
     
     return False
 
-async def check_conversation_rounds(state: State) -> str:
-    """检查对话轮数，决定是否需要总结"""
-    # 计算对话轮数（每轮包含一个用户消息和一个助手消息）
+async def route_after_context_check(state: State) -> str:
+    """根据上下文状态决定是否进入压缩节点。"""
     conversation_rounds = state.get("conversation_rounds", 0)
     
     logger.info(f"当前对话轮数: {conversation_rounds}")
     
-    if conversation_rounds >= 15:
-        logger.info("对话轮数超过15，触发总结")
-        return "summarize"
-    else:
-        logger.info("对话轮数未达到15，继续对话")
-        return "end"
+    if should_compress_context(state):
+        logger.info("上下文达到压缩条件，触发压缩")
+        return "compress"
+
+    logger.info("上下文未达到压缩条件，继续对话")
+    return "end"
+
+
+async def check_conversation_rounds(state: State) -> str:
+    """兼容旧名称，内部使用上下文压缩路由。"""
+    return await route_after_context_check(state)
 
 async def route_after_decompose(state: State) -> str:
     """查询拆解后的路由函数
