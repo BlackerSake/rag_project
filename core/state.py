@@ -1,10 +1,17 @@
-from typing import Dict, List, TypedDict, Optional
+from typing import Any, Dict, List, TypedDict, Optional
 from langchain_core.messages import BaseMessage
 from typing_extensions import Annotated
-import operator
+
+
+def merge_messages(left: List[BaseMessage], right: Any) -> List[BaseMessage]:
+    """合并消息；压缩节点可显式替换为近期消息。"""
+    if isinstance(right, dict) and right.get("__replace__") is True:
+        return list(right.get("messages") or [])
+    return list(left or []) + list(right or [])
+
 
 class State(TypedDict):
-    messages: Annotated[List[BaseMessage], operator.add]
+    messages: Annotated[List[BaseMessage], merge_messages]
     query: Optional[str]
     current_topic: str
     history: List[Dict[str, str]]
@@ -14,6 +21,9 @@ class State(TypedDict):
     confidence_score: Optional[float]
     conversation_rounds: int
     summary: Optional[str]
+    structured_state: Dict[str, Any]
+    context_token_count: Optional[int]
+    summary_error: Optional[str]
     intent_id: Optional[str]
     intent_score: Optional[float]
     intent_candidates: List[Dict]
