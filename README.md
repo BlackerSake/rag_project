@@ -17,6 +17,10 @@
 - [專案結構](#專案結構)
 - [常見問題](#常見問題)
 
+## 📖其他模块目录
+
+- [对话摘要兼记忆](core/summary/README.md)
+- [结构化输出](core/structured_output/README.md)
 ---
 
 ## 專案簡介

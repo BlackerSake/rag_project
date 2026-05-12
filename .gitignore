@@ -11,7 +11,7 @@ milvus_data/
 
 # 日志文件
 logs/
-*.log
+
 
 # VSCode 配置（如果不需要团队共享）
 .vscode/
